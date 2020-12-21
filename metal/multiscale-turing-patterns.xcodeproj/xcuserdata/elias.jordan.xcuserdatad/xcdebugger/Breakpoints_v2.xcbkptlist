@@ -14,8 +14,8 @@
             filePath = "multiscale-turing-patterns/Kernels.metal"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "21"
-            endingLineNumber = "21"
+            startingLineNumber = "17"
+            endingLineNumber = "17"
             landmarkName = "linear_index(int x, int y, int width)"
             landmarkType = "9">
          </BreakpointContent>

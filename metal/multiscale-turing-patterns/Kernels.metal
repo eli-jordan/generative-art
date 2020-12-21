@@ -7,10 +7,6 @@ struct ScaleCell {
    float variation;
 };
 
-//struct ScaleState {
-//   array<, <#size_t N#>>
-//}
-
 // Clears the display
 kernel void clear_pass(texture2d<half, access::write> tex [[ texture(0) ]],
                        uint2 id [[ thread_position_in_grid ]]) {
@@ -73,8 +69,8 @@ kernel void update_turing_scale(texture2d<half, access::read> tex [[ texture(0) 
    int activator_r = scale_config->x;
    int inhibitor_r = scale_config->y;
 
-   float activator_avg = boxAverage(grid, id, activator_r, w, h);
-   float inhibitor_avg = boxAverage(grid, id, inhibitor_r, w, h);
+   float activator_avg = circleAverage(grid, id, activator_r, w, h);
+   float inhibitor_avg = circleAverage(grid, id, inhibitor_r, w, h);
 
    ScaleCell cell;
    cell.activator = activator_avg;
@@ -111,31 +107,31 @@ kernel void render_grid(texture2d<half, access::write> tex [[ texture(0) ]],
    };
    
    float inc[] = {
+      0.06,
       0.05,
       0.04,
       0.03,
       0.02,
-      0.01,
    };
    
    float maxInc = 0.05;
    
-   thread ScaleCell *best = &cells[0];
+   ScaleCell best = cells[0];
    float amount = inc[0];
    for(int i = 1; i < 5; i++) {
-      if(cells[i].variation < best->variation) {
-         best = &cells[i];
+      if(cells[i].variation < best.variation) {
+         best = cells[i];
          amount = inc[i];
       }
    }
    
-   if(best->activator > best->inhibitor) {
-      float v = grid[idx] + amount;
-      grid[idx] = map(v, -1, 1 + maxInc, -1, 1);
+   float v = 0;
+   if(best.activator > best.inhibitor) {
+      v = grid[idx] + amount;
    } else {
-      float v = grid[idx] - amount;
-      grid[idx] = map(v, -1 - maxInc, 1, -1, 1);
+      v = grid[idx] - amount;
    }
+   grid[idx] = map(v, -1 - maxInc, 1 + maxInc, -1, 1);
 
    float value = map(grid[idx], -1, 1, 0, 1);
    tex.write(half4(value, value, value, 1), id);

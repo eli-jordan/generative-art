@@ -16,6 +16,8 @@ class MultiscaleView: MTKView {
    var scaleStateBuffers: [MTLBuffer] = []
    var scaleConfigBuffers: [MTLBuffer] = []
    
+   var textureForFrameCapture: MTLTexture!
+   
    var scaleConfigs = [
       SIMD2<Int32>(100, 200),
       SIMD2<Int32>(20, 40),
@@ -43,6 +45,16 @@ class MultiscaleView: MTKView {
       let drawable = currentDrawable!
       self.textureWidth = drawable.texture.width * 2
       self.textureHeight = drawable.texture.height * 2
+      
+      let descriptor = MTLTextureDescriptor.texture2DDescriptor(
+         pixelFormat: .bgra8Unorm,
+         width: textureWidth,
+         height: textureHeight,
+         mipmapped: false
+      )
+      descriptor.resourceOptions = [.storageModeManaged]
+      descriptor.usage = [.shaderRead, .shaderWrite]
+      self.textureForFrameCapture = device?.makeTexture(descriptor: descriptor)
       
       lookupKernels()
       allocateBuffers()
@@ -115,8 +127,6 @@ class MultiscaleView: MTKView {
          enqueuePass(encoder: encoder!, pass: updateTuringScalePass)
       }
       
-//      runUpdateScales()
-      
       encoder!.setBuffer(scaleStateBuffers[0], offset: 0, index: 10)
       encoder!.setBuffer(scaleStateBuffers[1], offset: 0, index: 11)
       encoder!.setBuffer(scaleStateBuffers[2], offset: 0, index: 12)
@@ -129,27 +139,13 @@ class MultiscaleView: MTKView {
       commandBuffer?.commit()
       commandBuffer?.waitUntilCompleted()
       
+      // "/Users/elias.jordan/creative-code/turing-patterns/metal/frame-" +
+      let filePath = String(format: "%04d", frameCount) + ".png"
+      let tex = currentDrawable!.texture
+      writeTexture(tex, url: URL.init(fileURLWithPath: filePath))
+      
       frameCount += 1
       print("Completed Frames: ", frameCount)
-   }
-   
-   func runUpdateScales() {
-      for i in 0..<scaleConfigs.count {
-         let commandBuffer = commandQueue.makeCommandBuffer()
-         let encoder = commandBuffer?.makeComputeCommandEncoder()
-         
-         let drawable = currentDrawable!
-         encoder!.setTexture(drawable.texture, index: 0)
-         encoder!.setBuffer(gridBuffer, offset: 0, index: 1)
-      
-         encoder!.setBuffer(scaleStateBuffers[i], offset: 0, index: 0)
-         encoder!.setBuffer(scaleConfigBuffers[i], offset: 0, index: 2)
-         enqueuePass(encoder: encoder!, pass: updateTuringScalePass)
-         
-         encoder!.endEncoding()
-         commandBuffer?.commit()
-         commandBuffer?.waitUntilCompleted()
-      }
    }
    
    private func enqueuePass(encoder: MTLComputeCommandEncoder, pass: MTLComputePipelineState) {
