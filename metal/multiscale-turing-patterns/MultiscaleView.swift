@@ -140,9 +140,11 @@ class MultiscaleView: MTKView {
       commandBuffer?.waitUntilCompleted()
       
       // "/Users/elias.jordan/creative-code/turing-patterns/metal/frame-" +
-      let filePath = String(format: "%04d", frameCount) + ".png"
+      let filePath = "frame-" + String(format: "%04d", frameCount) + ".png"
+      let url = URL.init(fileURLWithPath: filePath)
+      print(url)
       let tex = currentDrawable!.texture
-      writeTexture(tex, url: URL.init(fileURLWithPath: filePath))
+      writeTexture(tex, url: url)
       
       frameCount += 1
       print("Completed Frames: ", frameCount)
