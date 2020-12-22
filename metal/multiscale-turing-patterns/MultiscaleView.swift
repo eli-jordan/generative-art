@@ -14,16 +14,38 @@ class MultiscaleView: MTKView {
    
    var gridBuffer: MTLBuffer!
    var scaleStateBuffers: [MTLBuffer] = []
-   var scaleConfigBuffers: [MTLBuffer] = []
-   
-   var textureForFrameCapture: MTLTexture!
    
    var scaleConfigs = [
-      SIMD2<Int32>(100, 200),
-      SIMD2<Int32>(20, 40),
-      SIMD2<Int32>(10, 20),
-      SIMD2<Int32>(5, 10),
-      SIMD2<Int32>(1, 2)
+      ScaleConfig(
+         activator_radius: 100,
+         inhibitor_radius: 200,
+         small_amount: 0.05,
+         colour: SIMD4<Float>(1, 0, 0, 1)
+      ),
+      ScaleConfig(
+         activator_radius: 20,
+         inhibitor_radius: 40,
+         small_amount: 0.04,
+         colour: SIMD4<Float>(0, 1, 0, 1)
+      ),
+      ScaleConfig(
+         activator_radius: 10,
+         inhibitor_radius: 20,
+         small_amount: 0.03,
+         colour: SIMD4<Float>(0, 0, 1, 1)
+      ),
+      ScaleConfig(
+         activator_radius: 5,
+         inhibitor_radius: 10,
+         small_amount: 0.02,
+         colour: SIMD4<Float>(0.5, 0, 0.5, 1)
+      ),
+      ScaleConfig(
+         activator_radius: 1,
+         inhibitor_radius: 2,
+         small_amount: 0.01,
+         colour: SIMD4<Float>(0, 0.5, 0.5, 1)
+      ),
    ]
    
    var textureWidth = 0
@@ -46,16 +68,6 @@ class MultiscaleView: MTKView {
       self.textureWidth = drawable.texture.width * 2
       self.textureHeight = drawable.texture.height * 2
       
-      let descriptor = MTLTextureDescriptor.texture2DDescriptor(
-         pixelFormat: .bgra8Unorm,
-         width: textureWidth,
-         height: textureHeight,
-         mipmapped: false
-      )
-      descriptor.resourceOptions = [.storageModeManaged]
-      descriptor.usage = [.shaderRead, .shaderWrite]
-      self.textureForFrameCapture = device?.makeTexture(descriptor: descriptor)
-      
       lookupKernels()
       allocateBuffers()
       
@@ -65,9 +77,9 @@ class MultiscaleView: MTKView {
    func lookupKernels() {
       // Lookup our compute kernel functions
       let library = device?.makeDefaultLibrary()
-      let clearKernel = library?.makeFunction(name: "clear_pass")
       let updateTuringScaleKernel = library?.makeFunction(name: "update_turing_scale")
       let renderGridKernel = library?.makeFunction(name: "render_grid")
+      let clearKernel = library?.makeFunction(name: "clear_pass")
    
       do {
          clearPass = try device?.makeComputePipelineState(function: clearKernel!)
@@ -83,19 +95,12 @@ class MultiscaleView: MTKView {
       print("Total Pixels: ", pixels)
       
       // Allocate a state buffer for each cell
-      for i in 0..<scaleConfigs.count {
+      for _ in 0..<scaleConfigs.count {
          let stateBuffer = device?.makeBuffer(
             length: MemoryLayout<ScaleCell>.stride * pixels,
             options: .storageModeManaged
          )
          scaleStateBuffers.append(stateBuffer!)
-         
-         let configBuffer = device?.makeBuffer(
-            bytes: &scaleConfigs[i],
-            length: MemoryLayout<SIMD2<Int32>>.stride,
-            options: .storageModeManaged
-         )
-         scaleConfigBuffers.append(configBuffer!)
       }
       
       // Generate the initial values for the grid using random numbers between -1 and 1
@@ -107,7 +112,7 @@ class MultiscaleView: MTKView {
       
       gridBuffer = device?.makeBuffer(
          bytes: initial,
-         length: MemoryLayout<Float>.stride * pixels,
+         length: MemoryLayout<GridCell>.stride * pixels,
          options: .storageModeManaged
       )
    }
@@ -119,11 +124,18 @@ class MultiscaleView: MTKView {
       
       let drawable = currentDrawable!
       encoder!.setTexture(drawable.texture, index: 0)
+      encoder!.setTexture(drawable.texture, index: 1)
       encoder!.setBuffer(gridBuffer, offset: 0, index: 1)
+      
+      if(frameCount == 0) {
+         blackScreen()
+      }
 
       for i in 0..<scaleConfigs.count {
          encoder!.setBuffer(scaleStateBuffers[i], offset: 0, index: 0)
-         encoder!.setBuffer(scaleConfigBuffers[i], offset: 0, index: 2)
+         
+         var config = scaleConfigs[i]
+         encoder!.setBytes(&config, length: MemoryLayout.size(ofValue: config), index: 2)
          enqueuePass(encoder: encoder!, pass: updateTuringScalePass)
       }
       
@@ -132,6 +144,7 @@ class MultiscaleView: MTKView {
       encoder!.setBuffer(scaleStateBuffers[2], offset: 0, index: 12)
       encoder!.setBuffer(scaleStateBuffers[3], offset: 0, index: 13)
       encoder!.setBuffer(scaleStateBuffers[4], offset: 0, index: 14)
+      encoder!.setBytes(&scaleConfigs, length: MemoryLayout<ScaleConfig>.stride * scaleConfigs.count, index: 20)
       enqueuePass(encoder: encoder!, pass: renderGridPass)
       
       encoder!.endEncoding()
@@ -139,15 +152,31 @@ class MultiscaleView: MTKView {
       commandBuffer?.commit()
       commandBuffer?.waitUntilCompleted()
       
-      // "/Users/elias.jordan/creative-code/turing-patterns/metal/frame-" +
-      let filePath = "frame-" + String(format: "%04d", frameCount) + ".png"
-      let url = URL.init(fileURLWithPath: filePath)
-      print(url)
-      let tex = currentDrawable!.texture
-      writeTexture(tex, url: url)
+      if(frameCount > 10) {
+         let filePath = "/Users/elias.jordan/Desktop/render/frame-" + String(format: "%04d", frameCount) + ".png"
+         let url = URL(fileURLWithPath: filePath)
+         let tex = currentDrawable!.texture
+         writeTexture(tex, url: url)
+      }
+ 
       
       frameCount += 1
       print("Completed Frames: ", frameCount)
+   }
+   
+   private func blackScreen() {
+      let commandBuffer = commandQueue.makeCommandBuffer()
+      let encoder = commandBuffer?.makeComputeCommandEncoder()
+      
+      let drawable = currentDrawable!
+      encoder!.setTexture(drawable.texture, index: 0)
+      
+      enqueuePass(encoder: encoder!, pass: clearPass)
+      
+      encoder!.endEncoding()
+      commandBuffer?.present(drawable)
+      commandBuffer?.commit()
+      commandBuffer?.waitUntilCompleted()
    }
    
    private func enqueuePass(encoder: MTLComputeCommandEncoder, pass: MTLComputePipelineState) {

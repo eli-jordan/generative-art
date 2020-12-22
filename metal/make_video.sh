@@ -1,7 +1,7 @@
 #!/bin/bash
 
 ffmpeg -framerate 25 \
-	-i frame-%4d.tif \
+	-i frame-%4d.png \
 	-pix_fmt yuv420p \
 	output-raw.mp4
 

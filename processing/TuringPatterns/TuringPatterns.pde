@@ -10,17 +10,21 @@ class Scale {
   float[][] inhibitor;
   float[][] activator;
   float[][] variation;
+  
+  color c;
 
-  Scale(int w, int h, int activatorRadius, int inhibitorRadius, float smallAmount) {
+  Scale(int w, int h, int activatorRadius, int inhibitorRadius, float smallAmount, color c) {
     this.w = w;
     this.h = h;
     this.inhibitorRadius = inhibitorRadius;
     this.activatorRadius = activatorRadius;
     this.smallAmount = smallAmount;
+    this.c = c;
 
     inhibitor = new float[h][w];
     activator = new float[h][w];
     variation = new float[h][w];
+    
   }
 
   void update(Grid g) {
@@ -44,20 +48,28 @@ class Grid {
   Scale[] scales;
 
   float[][] grid;
+  color[][] colors;
 
   Grid(int w, int h) {
     this.w = w;
     this.h = h;
     
     this.scales = new Scale[] {
-     new Scale(w, h, 100, 200, 0.05),
-     new Scale(w, h,  20,  40, 0.04),
-     new Scale(w, h,  10,  20, 0.03),
-     new Scale(w, h,   5,  10, 0.02),
-     new Scale(w, h,   1,   2, 0.01)
+     new Scale(w, h, 100, 200, 0.05, color(255, 0,   0)),
+     new Scale(w, h,  20,  40, 0.04, color(0,   255, 0)),
+     new Scale(w, h,  10,  20, 0.03, color(0,   0,   255)),
+     new Scale(w, h,   5,  10, 0.02, color(155, 0,   255)),
+     new Scale(w, h,   1,   2, 0.01, color(0,   0,   0))
     };
 
     grid = new float[h][w];
+    colors = new color[h][w];
+    
+    for (int x = 0; x < w; x ++) {
+      for (int y = 0; y < h; y++) {
+        colors[y][x] = color(0, 0, 0, 255);
+      }
+    }
 
     for (int x = 0; x < w; x ++) {
       for (int y = 0; y < h; y++) {
@@ -83,6 +95,8 @@ class Grid {
           }
         }
         
+        colors[y][x] = lerpColor(colors[y][x], bestScale.c, 0.1);
+        
         if(bestScale.activator[y][x] > bestScale.inhibitor[y][x]) {
           grid[y][x] += bestScale.smallAmount;
         } else {
@@ -92,20 +106,20 @@ class Grid {
       }
     }
 
-    //float max = 0;
-    //float min = Float.MAX_VALUE;
-    //for (int x = 0; x < w; x ++) {
-    //  for (int y = 0; y < h; y++) {
-    //    max = max(max, grid[y][x]);
-    //    min = min(min, grid[y][x]);
-    //  }
-    //}
+    float max = 0;
+    float min = Float.MAX_VALUE;
+    for (int x = 0; x < w; x ++) {
+      for (int y = 0; y < h; y++) {
+        max = max(max, grid[y][x]);
+        min = min(min, grid[y][x]);
+      }
+    }
 
-    //for (int x = 0; x < w; x ++) {
-    //  for (int y = 0; y < h; y++) {
-    //    grid[y][x] = map(grid[y][x], min, max, -1, 1);
-    //  }
-    //}
+    for (int x = 0; x < w; x ++) {
+      for (int y = 0; y < h; y++) {
+        grid[y][x] = map(grid[y][x], min, max, -1, 1);
+      }
+    }
   }
 
   float average(int cx, int cy, int r) {
@@ -131,7 +145,7 @@ class Grid {
 Grid g;
 
 void setup() {
-  size(100, 100);
+  size(800, 800);
   displayDensity(1);
 
   g = new Grid(width, height);
@@ -142,8 +156,15 @@ void draw() {
 
   for (int x = 0; x < width; x++) {
     for (int y = 0; y < height; y++) {
+      color c = g.colors[y][x];
       int index = x + y * width;
-      pixels[index] = color(map(g.grid[y][x], -1, 1, 0, 255));
+      
+      float value = map(g.grid[y][x], -1, 1, 0, 1);
+      float r = red(c) * value;
+      float g = green(c) * value;
+      float b = blue(c) * value;
+      
+      pixels[index] = color(r, g, b);
     }
   }
 

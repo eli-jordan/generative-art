@@ -12,7 +12,15 @@ struct ScaleCell {
    var variation: Float
 }
 
+
 struct ScaleConfig {
-   var activator_radius: Int
-   var inhibitor_radius: Int
+   var activator_radius: Int32
+   var inhibitor_radius: Int32
+   var small_amount: Float
+   var colour: SIMD4<Float>
+}
+
+struct GridCell {
+   var value: Float
+   var colour: SIMD4<Float>
 }
