@@ -1,6 +1,8 @@
 #include <metal_stdlib>
 using namespace metal;
 
+constant float PI = 180; //3.14159265358979323846264338327950288419716939937510;
+
 struct ScaleCell {
    float activator;
    float inhibitor;
@@ -16,8 +18,72 @@ struct ScaleConfig {
    int activator_radius;
    int inhibitor_radius;
    float small_amount;
+   int symmetry;
    float4 colour;
 };
+
+struct Colour_HSV {
+   float h;
+   float s;
+   float v;
+};
+
+Colour_HSV rgb_to_hsv(float3 colour)
+{
+   Colour_HSV result;
+   
+   float minV = min(colour.r, min(colour.g, colour.b));
+   float maxV = max(colour.r, min(colour.g, colour.b));
+   result.v = maxV;
+   float delta = maxV - minV;
+   
+   if(maxV != 0) {
+      result.s = delta / maxV;
+   } else {
+      result.s = 0;
+      result.h = -1;
+      result.h = -1;
+      return result;
+   }
+   
+   if(colour.r == maxV) {
+      result.h = (colour.g - colour.b) / delta;
+   } else if(colour.g == maxV) {
+      result.h = 2 + (colour.b - colour.r) / delta;
+   } else {
+      result.h = 4 + (colour.r - colour.g ) / delta;
+   }
+      
+   result.h *= 60;
+   if(result.h < 0) {
+      result.h += 360;
+   }
+   
+   return result;
+}
+
+float3 hsv_to_rgb(Colour_HSV colour) {
+   
+   if(colour.s == 0) {
+      return float3(colour.v, colour.v, colour.v);
+   }
+   
+   float h = colour.h / 60;
+   int i = floor(h);
+   float f = h - i;
+   float p = colour.v * (1 - colour.s);
+   float q = colour.v * (1 - colour.s * f);
+   float t = colour.v * ( 1 - colour.s * (1 - f));
+   switch(i) {
+      case 0: return float3(colour.v, t, p);
+      case 1: return float3(q, colour.v, p);
+      case 2: return float3(p, colour.v, t);
+      case 3: return float3(p, q, colour.v);
+      case 4: return float3(t, p, colour.v);
+      // case 5:
+      default: return float3(colour.v, p, q);
+   }
+}
 
 // Clears the display
 kernel void clear_pass(texture2d<float, access::write> tex [[ texture(0) ]],
@@ -27,12 +93,6 @@ kernel void clear_pass(texture2d<float, access::write> tex [[ texture(0) ]],
 
 int linear_index(int x, int y, int width) {
    return y*width + x;
-}
-
-// Lineraly interpolate a colour between `start` and `stop` by the
-// provided amount.
-float4 lerp_color(float4 start, float4 stop, float4 amount) {
-   return start + (stop - start) * amount;
 }
 
 float circleAverage(constant float *grid, uint2 center, int r, int w, int h) {
@@ -100,6 +160,49 @@ kernel void update_turing_scale(texture2d<float, access::read> tex [[ texture(0)
 }
 
 
+kernel void apply_symmetry_to_scale(texture2d<float, access::read> tex [[ texture(0) ]],
+                                device ScaleCell *scale_state [[ buffer(0) ]],
+                                constant float *grid [[ buffer(1) ]],
+                                constant ScaleConfig *scale_config [[ buffer(2) ]],
+                                uint2 id [[ thread_position_in_grid ]]) {
+   
+   int w = tex.get_width();
+   int h = tex.get_height();
+   int idx = linear_index(id.x, id.y, w);
+
+   int2 center = int2(w / 2, h / 2);
+   int dx = id.x - center.x;
+   int dy = id.y - center.y;
+   
+//   float r = sqrt(float(dx * dx) + float(dy * dy));
+   
+   float activator = scale_state[idx].activator;
+   float inhibitor = scale_state[idx].inhibitor;
+   for(int i = 1; i < scale_config->symmetry; i++) {
+      float angle = ((float) i / (float) scale_config->symmetry) * 2.0f * PI;
+      float s = sin(angle);
+      float c = cos(angle);
+      int x = (dx * c - dy * s) + center.x;
+      int y = (dy * c + dx * s) + center.y;
+
+      
+      if(x > w) x = x - w;
+      if(x < 0) x = w - (-1 * x);
+      if(y > h) y = y - h;
+      if(y < 0) y = h - (-1 * y);
+      
+      activator += scale_state[linear_index(x, y, w)].activator;
+      inhibitor += scale_state[linear_index(x, y, w)].inhibitor;
+   }
+   
+   ScaleCell cell;
+   cell.activator = activator / scale_config->symmetry;
+   cell.inhibitor = inhibitor / scale_config->symmetry;
+   cell.variation = abs(cell.activator - cell.inhibitor);
+   
+   scale_state[idx] = cell;
+}
+
 float map(float value,
           float start1, float stop1,
           float start2, float stop2) {
@@ -150,12 +253,20 @@ kernel void render_grid(texture2d<float, access::read> tex_read [[ texture(0) ]]
    
    float4 current_colour = tex_read.read(id);
    float4 target_colour = config.colour;
+
+   float4 new_colour = mix(current_colour, target_colour, amount);
+
+   Colour_HSV c = rgb_to_hsv(new_colour.rgb);
+   float value = map(grid[idx], -1, 1, 0, 1);
+   c.v = value;
+   new_colour.rgb = hsv_to_rgb(c);
+
+   // Gamma filter
+   new_colour.rgb = pow(new_colour.rgb, float3(1.1));
+   new_colour.a = 1;
    
-   float4 new_colour = lerp_color(current_colour, target_colour, amount);
+   tex_write.write(new_colour, id);
    
-//   float value = map(grid[idx], -1, 1, 0.5, 1);
-   float4 scaled_new_colour = new_colour; // * value; // + 0.5);
-   scaled_new_colour.a = 1;
-   
-   tex_write.write(scaled_new_colour, id);
+//   float value = map(grid[idx], -1, 1, 0, 1);
+//   tex_write.write(float4(value, value, value, 1), id);
 }

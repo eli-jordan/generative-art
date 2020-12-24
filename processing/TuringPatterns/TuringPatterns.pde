@@ -55,11 +55,13 @@ class Grid {
     this.h = h;
     
     this.scales = new Scale[] {
-     new Scale(w, h, 100, 200, 0.05, color(255, 0,   0)),
-     new Scale(w, h,  20,  40, 0.04, color(0,   255, 0)),
-     new Scale(w, h,  10,  20, 0.03, color(0,   0,   255)),
-     new Scale(w, h,   5,  10, 0.02, color(155, 0,   255)),
-     new Scale(w, h,   1,   2, 0.01, color(0,   0,   0))
+      new Scale(w, h, 50, 100, 0.05, color(255, 0,   0)),
+     new Scale(w, h,  10,  20, 0.04, color(0,   255, 0)),
+     //new Scale(w, h, 100, 200, 0.05, color(255, 0,   0)),
+     //new Scale(w, h,  20,  40, 0.04, color(0,   255, 0)),
+     //new Scale(w, h,  10,  20, 0.03, color(0,   0,   255)),
+     //new Scale(w, h,   5,  10, 0.02, color(155, 0,   255)),
+     //new Scale(w, h,   1,   2, 0.01, color(0,   0,   0))
     };
 
     grid = new float[h][w];
@@ -78,7 +80,7 @@ class Grid {
     }
   }
 
-  void update() {
+void update() {
     
     for(Scale scale : scales) {
       scale.update(this);
@@ -95,7 +97,7 @@ class Grid {
           }
         }
         
-        colors[y][x] = lerpColor(colors[y][x], bestScale.c, 0.1);
+        //colors[y][x] = lerpColor(colors[y][x], bestScale.c, 0.1);
         
         if(bestScale.activator[y][x] > bestScale.inhibitor[y][x]) {
           grid[y][x] += bestScale.smallAmount;
@@ -145,7 +147,7 @@ class Grid {
 Grid g;
 
 void setup() {
-  size(800, 800);
+  size(100, 100);
   displayDensity(1);
 
   g = new Grid(width, height);
@@ -156,19 +158,19 @@ void draw() {
 
   for (int x = 0; x < width; x++) {
     for (int y = 0; y < height; y++) {
-      color c = g.colors[y][x];
+      //color c = g.colors[y][x];
       int index = x + y * width;
       
       float value = map(g.grid[y][x], -1, 1, 0, 1);
-      float r = red(c) * value;
-      float g = green(c) * value;
-      float b = blue(c) * value;
+      //float r = red(c) * value;
+      //float g = green(c) * value;
+      //float b = blue(c) * value;
       
-      pixels[index] = color(r, g, b);
+      pixels[index] = color(value);
     }
   }
 
   g.update();
   updatePixels();
-  saveFrame();
+  //saveFrame();
 }

@@ -17,6 +17,7 @@ struct ScaleConfig {
    var activator_radius: Int32
    var inhibitor_radius: Int32
    var small_amount: Float
+   var symmetry: Int32
    var colour: SIMD4<Float>
 }
 

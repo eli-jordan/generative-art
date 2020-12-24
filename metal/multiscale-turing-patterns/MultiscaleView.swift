@@ -9,6 +9,8 @@ class MultiscaleView: MTKView {
    // Pipeline state for the `update_turing_scale` compute kernel
    var updateTuringScalePass: MTLComputePipelineState!
    
+   var applySymmetryPass: MTLComputePipelineState!
+   
    // Pipeline state for the `render_grid` compute kernel
    var renderGridPass: MTLComputePipelineState!
    
@@ -20,31 +22,61 @@ class MultiscaleView: MTKView {
          activator_radius: 100,
          inhibitor_radius: 200,
          small_amount: 0.05,
-         colour: SIMD4<Float>(1, 0, 0, 1)
+         symmetry: 4,
+         colour: SIMD4<Float>(
+            0.9764,
+            0.7333,
+            0.9804,
+            1
+         )
       ),
       ScaleConfig(
-         activator_radius: 20,
-         inhibitor_radius: 40,
+         activator_radius: 150,
+         inhibitor_radius: 200,
          small_amount: 0.04,
-         colour: SIMD4<Float>(0, 1, 0, 1)
+         symmetry: 2,
+         colour: SIMD4<Float>(
+            113.0 / 255.0,
+            237.0 / 255.0,
+            242.0 / 255.0,
+            1
+         )
+      ),
+      ScaleConfig(
+         activator_radius: 30,
+         inhibitor_radius: 50,
+         small_amount: 0.03,
+         symmetry: 1,
+         colour: SIMD4<Float>(
+            208.0 / 255.0,
+            167.0 / 255.0,
+            250.0 / 255.0,
+            1
+         )
       ),
       ScaleConfig(
          activator_radius: 10,
-         inhibitor_radius: 20,
-         small_amount: 0.03,
-         colour: SIMD4<Float>(0, 0, 1, 1)
-      ),
-      ScaleConfig(
-         activator_radius: 5,
-         inhibitor_radius: 10,
+         inhibitor_radius: 50,
          small_amount: 0.02,
-         colour: SIMD4<Float>(0.5, 0, 0.5, 1)
+         symmetry: 1,
+         colour: SIMD4<Float>(
+            251.0 / 255.0,
+            255.0 / 255.0,
+            155.0 / 255.0,
+            1
+         )
       ),
       ScaleConfig(
          activator_radius: 1,
          inhibitor_radius: 2,
          small_amount: 0.01,
-         colour: SIMD4<Float>(0, 0.5, 0.5, 1)
+         symmetry: 1,
+         colour: SIMD4<Float>(
+            181.0 / 255.0,
+            252.0 / 255.0,
+            184.0 / 255.0,
+            1
+         )
       ),
    ]
    
@@ -78,12 +110,14 @@ class MultiscaleView: MTKView {
       // Lookup our compute kernel functions
       let library = device?.makeDefaultLibrary()
       let updateTuringScaleKernel = library?.makeFunction(name: "update_turing_scale")
+      let applySymmetryToScaleKernel = library?.makeFunction(name: "apply_symmetry_to_scale")
       let renderGridKernel = library?.makeFunction(name: "render_grid")
       let clearKernel = library?.makeFunction(name: "clear_pass")
    
       do {
          clearPass = try device?.makeComputePipelineState(function: clearKernel!)
          updateTuringScalePass = try device?.makeComputePipelineState(function: updateTuringScaleKernel!)
+         applySymmetryPass = try device?.makeComputePipelineState(function: applySymmetryToScaleKernel!)
          renderGridPass = try device?.makeComputePipelineState(function: renderGridKernel!)
       } catch let error as NSError {
          print(error)
@@ -109,7 +143,7 @@ class MultiscaleView: MTKView {
          let value = Float.random(in: -1..<1)
          initial.append(value)
       }
-      
+
       gridBuffer = device?.makeBuffer(
          bytes: initial,
          length: MemoryLayout<GridCell>.stride * pixels,
@@ -119,6 +153,67 @@ class MultiscaleView: MTKView {
    
    var frameCount = 0
    override func draw(_ dirtyRect: NSRect) {
+//      let commandBuffer = commandQueue.makeCommandBuffer()
+//      let encoder = commandBuffer?.makeComputeCommandEncoder()
+//
+//      let drawable = currentDrawable!
+//      encoder!.setTexture(drawable.texture, index: 0)
+//      encoder!.setTexture(drawable.texture, index: 1)
+//      encoder!.setBuffer(gridBuffer, offset: 0, index: 1)
+//
+//      if(frameCount == 0) {
+//         blackScreen()
+//      }
+//
+//      for i in 0..<scaleConfigs.count {
+//         encoder!.setBuffer(scaleStateBuffers[i], offset: 0, index: 0)
+//
+//         var config = scaleConfigs[i]
+//         encoder!.setBytes(&config, length: MemoryLayout.size(ofValue: config), index: 2)
+//         enqueuePass(encoder: encoder!, pass: updateTuringScalePass)
+//      }
+//
+//      for i in 0..<scaleConfigs.count {
+//         encoder!.setBuffer(scaleStateBuffers[i], offset: 0, index: 0)
+//
+//         var config = scaleConfigs[i]
+//         encoder!.setBytes(&config, length: MemoryLayout.size(ofValue: config), index: 2)
+//         enqueuePass(encoder: encoder!, pass: applySymmetryPass)
+//      }
+//
+//      encoder!.setBuffer(scaleStateBuffers[0], offset: 0, index: 10)
+//      encoder!.setBuffer(scaleStateBuffers[1], offset: 0, index: 11)
+//      encoder!.setBuffer(scaleStateBuffers[2], offset: 0, index: 12)
+//      encoder!.setBuffer(scaleStateBuffers[3], offset: 0, index: 13)
+//      encoder!.setBuffer(scaleStateBuffers[4], offset: 0, index: 14)
+//      encoder!.setBytes(&scaleConfigs, length: MemoryLayout<ScaleConfig>.stride * scaleConfigs.count, index: 20)
+//      enqueuePass(encoder: encoder!, pass: renderGridPass)
+//
+//      encoder!.endEncoding()
+//      commandBuffer?.present(drawable)
+//      commandBuffer?.commit()
+//      commandBuffer?.waitUntilCompleted()
+      
+      if frameCount == 0 {
+         blackScreen()
+      }
+      
+      convolutionStateUpdate()
+      symmetryStateUpdate()
+      renderState()
+      
+//      if frameCount > 10 {
+         let filePath = "/Users/elias.jordan/Desktop/render/frame-" + String(format: "%04d", frameCount) + ".png"
+         let url = URL(fileURLWithPath: filePath)
+         let tex = currentDrawable!.texture
+         writeTexture(tex, url: url)
+//      }
+ 
+      frameCount += 1
+      print("Completed Frames: ", frameCount)
+   }
+   
+   private func renderState() {
       let commandBuffer = commandQueue.makeCommandBuffer()
       let encoder = commandBuffer?.makeComputeCommandEncoder()
       
@@ -126,18 +221,6 @@ class MultiscaleView: MTKView {
       encoder!.setTexture(drawable.texture, index: 0)
       encoder!.setTexture(drawable.texture, index: 1)
       encoder!.setBuffer(gridBuffer, offset: 0, index: 1)
-      
-      if(frameCount == 0) {
-         blackScreen()
-      }
-
-      for i in 0..<scaleConfigs.count {
-         encoder!.setBuffer(scaleStateBuffers[i], offset: 0, index: 0)
-         
-         var config = scaleConfigs[i]
-         encoder!.setBytes(&config, length: MemoryLayout.size(ofValue: config), index: 2)
-         enqueuePass(encoder: encoder!, pass: updateTuringScalePass)
-      }
       
       encoder!.setBuffer(scaleStateBuffers[0], offset: 0, index: 10)
       encoder!.setBuffer(scaleStateBuffers[1], offset: 0, index: 11)
@@ -151,17 +234,50 @@ class MultiscaleView: MTKView {
       commandBuffer?.present(drawable)
       commandBuffer?.commit()
       commandBuffer?.waitUntilCompleted()
+   }
+   
+   private func symmetryStateUpdate() {
+      let commandBuffer = commandQueue.makeCommandBuffer()
+      let encoder = commandBuffer?.makeComputeCommandEncoder()
       
-      if(frameCount > 10) {
-         let filePath = "/Users/elias.jordan/Desktop/render/frame-" + String(format: "%04d", frameCount) + ".png"
-         let url = URL(fileURLWithPath: filePath)
-         let tex = currentDrawable!.texture
-         writeTexture(tex, url: url)
+      let drawable = currentDrawable!
+      encoder!.setTexture(drawable.texture, index: 0)
+      encoder!.setTexture(drawable.texture, index: 1)
+      encoder!.setBuffer(gridBuffer, offset: 0, index: 1)
+      
+      for i in 0..<scaleConfigs.count {
+         encoder!.setBuffer(scaleStateBuffers[i], offset: 0, index: 0)
+         
+         var config = scaleConfigs[i]
+         encoder!.setBytes(&config, length: MemoryLayout.size(ofValue: config), index: 2)
+         enqueuePass(encoder: encoder!, pass: applySymmetryPass)
       }
- 
       
-      frameCount += 1
-      print("Completed Frames: ", frameCount)
+      encoder!.endEncoding()
+      commandBuffer?.commit()
+      commandBuffer?.waitUntilCompleted()
+   }
+   
+   private func convolutionStateUpdate() {
+      let commandBuffer = commandQueue.makeCommandBuffer()
+      let encoder = commandBuffer?.makeComputeCommandEncoder()
+      
+      let drawable = currentDrawable!
+      encoder!.setTexture(drawable.texture, index: 0)
+      encoder!.setTexture(drawable.texture, index: 1)
+      encoder!.setBuffer(gridBuffer, offset: 0, index: 1)
+      
+      for i in 0..<scaleConfigs.count {
+         encoder!.setBuffer(scaleStateBuffers[i], offset: 0, index: 0)
+         
+         var config = scaleConfigs[i]
+         encoder!.setBytes(&config, length: MemoryLayout.size(ofValue: config), index: 2)
+         enqueuePass(encoder: encoder!, pass: updateTuringScalePass)
+      }
+      
+      encoder!.endEncoding()
+      commandBuffer?.commit()
+      commandBuffer?.waitUntilCompleted()
    }
    
    private func blackScreen() {
