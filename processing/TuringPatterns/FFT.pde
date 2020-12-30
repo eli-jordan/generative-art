@@ -1,24 +1,71 @@
 
-Complex[] fft(Complex[] values) {
-  if (values.length <= 1) {
-    return values;
+int count = 1;
+long copy_nanos = 0;
+long bit_reversal_nanos = 0;
+long butterfly_updates = 0;
+
+Complex[] fft(Complex[] x) {
+  // check that length is a power of 2
+  int n = x.length;
+  if (Integer.highestOneBit(n) != n) {
+    throw new RuntimeException("n is not a power of 2");
   }
+  
+  long start, end;
+  
+  start = System.nanoTime();
+  Complex[] out = new Complex[n];
+  System.arraycopy(x, 0, out, 0, n);
+  end = System.nanoTime();
+  
+  copy_nanos += end - start;
 
-  if (values.length % 2 != 0) {
-    throw new IllegalArgumentException("n=" + values.length + " is not a power of 2");
+  // bit reversal permutation
+  start = System.nanoTime();
+  int shift = 1 + Integer.numberOfLeadingZeros(n);
+  for (int k = 0; k < n; k++) {
+    int j = Integer.reverse(k) >>> shift;
+    if (j > k) {
+      Complex temp = x[j];
+      out[j] = x[k];
+      out[k] = temp;
+    }
   }
+  end = System.nanoTime();
+  bit_reversal_nanos += end - start;
 
-  Complex[] even = fft(evens(values));
-  Complex[] odd = fft(odds(values));
-
-  Complex[] temp = new Complex[values.length];
-  for (int k = 0; k < values.length / 2; k++) {
-    Complex w = omega(k, values.length);
-    temp[k] = even[k].add(w.mult(odd[k]));
-    temp[k + values.length / 2] = even[k].minus(w.mult(odd[k]));
+  // butterfly updates
+  start = System.nanoTime();
+  for (int L = 2; L <= n; L = L+L) {
+    for (int k = 0; k < L/2; k++) {
+      float kth = -2 * k * PI / L;
+      Complex w = new Complex(cos(kth), sin(kth));
+      for (int j = 0; j < n/L; j++) {
+        Complex tao = w.mult(out[j*L + k + L/2]);
+        out[j*L + k + L/2] = out[j*L + k].minus(tao); 
+        out[j*L + k]       = out[j*L + k].add(tao);
+      }
+    }
   }
-
-  return temp;
+  end = System.nanoTime();
+  butterfly_updates += end - start;
+  
+  count++;
+  
+  if(count % 10000 == 0) {
+    println("================== FFT Counters ==============================");
+    println("       Copy Avg: " + (copy_nanos / (double) count) * 1e-6 + " ms");
+    println("Bit-reverse Avg: " + (bit_reversal_nanos / (double) count) * 1e-6 + " ms");
+    println("  Butterfly Avg: " + (butterfly_updates / (double) count) * 1e-6 + " ms");
+    println("==============================================================");
+    
+    copy_nanos = 0;
+    bit_reversal_nanos = 0;
+    butterfly_updates = 0;
+    count = 1;
+  }
+  
+  return out;
 }
 
 Complex[] ifft(Complex[] x) {
@@ -69,6 +116,22 @@ Complex[][] fft2d(Complex[][] values) {
   return result;
 }
 
+
+
+Complex[][] wrapReals(float[][] re) {
+  int ydim = re.length;
+  int xdim = re[0].length;
+  
+  Complex[][] complex = new Complex[ydim][xdim];
+  for(int y = 0; y < ydim; y++) {
+    for(int x = 0; x < xdim; x++) {
+      complex[y][x] = new Complex(re[y][x], 0);
+    }
+  }
+  
+  return complex;
+}
+
 Complex[][] ifft2d(Complex[][] values) {
   int ydim = values.length;
   int xdim = values[0].length;
@@ -78,6 +141,7 @@ Complex[][] ifft2d(Complex[][] values) {
   for (int y = 0; y < ydim; y++) {
     result[y] = ifft(values[y]);
   }
+  //println("ifft2d: inverse-fft-rows took: " + (end - start) + " ms");
 
   result = transpose(result);
 
@@ -104,33 +168,6 @@ Complex[][] transpose(Complex[][] values) {
   }
 
   return result;
-}
-
-Complex[] evens(Complex[] values) {
-  Complex[] result = new Complex[values.length / 2];
-  for (int i = 0; i < values.length; i++) {
-    if (i % 2 == 0) {
-      result[i / 2] = values[i];
-    }
-  }
-
-  return result;
-}
-
-Complex[] odds(Complex[] values) {
-  Complex[] result = new Complex[values.length / 2];
-  for (int i = 0; i < values.length; i++) {
-    if (i % 2 != 0) {
-      result[i / 2] = values[i];
-    }
-  }
-
-  return result;
-}
-
-Complex omega(int k, int n) {
-  float w = -TWO_PI * k / n;
-  return new Complex(cos(w), sin(w));
 }
 
 //
@@ -214,37 +251,3 @@ Complex[] dft(float[] values) {
 
   return X;
 }
-
-//Complex[] fft(Complex[] x) {
-//  // check that length is a power of 2
-//  int n = x.length;
-//  if (Integer.highestOneBit(n) != n) {
-//    throw new RuntimeException("n is not a power of 2");
-//  }
-
-//  // bit reversal permutation
-//  int shift = 1 + Integer.numberOfLeadingZeros(n);
-//  for (int k = 0; k < n; k++) {
-//    int j = Integer.reverse(k) >>> shift;
-//    if (j > k) {
-//      Complex temp = x[j];
-//      x[j] = x[k];
-//      x[k] = temp;
-//    }
-//  }
-
-//  // butterfly updates
-//  for (int L = 2; L <= n; L = L+L) { // n=8 -> L=2,4,8 -> 3 iterations
-//    for (int k = 0; k < L/2; k++) {  // L=2 -> 1, L=4 -> 2, L=8 -> 4
-//      float kth = -2 * k * PI / L;
-//      Complex w = new Complex(cos(kth), sin(kth));
-//      for (int j = 0; j < n/L; j++) {
-//        Complex tao = w.mult(x[j*L + k + L/2]);
-//        x[j*L + k + L/2] = x[j*L + k].minus(tao); 
-//        x[j*L + k]       = x[j*L + k].add(tao);
-//      }
-//    }
-//  }
-  
-//  return x;
-//}

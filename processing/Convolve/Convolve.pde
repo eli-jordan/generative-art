@@ -3,8 +3,8 @@ int GridSize = 16;
 int BlurRadius = 3;
 
 void setup() {
-  //size(1024, 1024);
-  //runConvolutionOnCenteredSquare();
+  size(1024, 1024);
+  runConvolutionOnCenteredSquare();
   
   //size(512, 512);
   //blurLenaImage();
