@@ -52,18 +52,18 @@ Complex[] fft(Complex[] x) {
   
   count++;
   
-  if(count % 10000 == 0) {
-    println("================== FFT Counters ==============================");
-    println("       Copy Avg: " + (copy_nanos / (double) count) * 1e-6 + " ms");
-    println("Bit-reverse Avg: " + (bit_reversal_nanos / (double) count) * 1e-6 + " ms");
-    println("  Butterfly Avg: " + (butterfly_updates / (double) count) * 1e-6 + " ms");
-    println("==============================================================");
+  //if(count % 10000 == 0) {
+  //  println("================== FFT Counters ==============================");
+  //  println("       Copy Avg: " + (copy_nanos / (double) count) * 1e-6 + " ms");
+  //  println("Bit-reverse Avg: " + (bit_reversal_nanos / (double) count) * 1e-6 + " ms");
+  //  println("  Butterfly Avg: " + (butterfly_updates / (double) count) * 1e-6 + " ms");
+  //  println("==============================================================");
     
-    copy_nanos = 0;
-    bit_reversal_nanos = 0;
-    butterfly_updates = 0;
-    count = 1;
-  }
+  //  copy_nanos = 0;
+  //  bit_reversal_nanos = 0;
+  //  butterfly_updates = 0;
+  //  count = 1;
+  //}
   
   return out;
 }

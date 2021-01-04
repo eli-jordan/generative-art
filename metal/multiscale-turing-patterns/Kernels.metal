@@ -33,7 +33,7 @@ Colour_HSV rgb_to_hsv(float3 colour)
    Colour_HSV result;
    
    float minV = min(colour.r, min(colour.g, colour.b));
-   float maxV = max(colour.r, min(colour.g, colour.b));
+   float maxV = max(colour.r, max(colour.g, colour.b));
    result.v = maxV;
    float delta = maxV - minV;
    
