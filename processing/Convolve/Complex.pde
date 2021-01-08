@@ -8,8 +8,8 @@
 
 
 class Complex {
-  final float re;
-  final float im;
+  float re;
+  float im;
 
   Complex(float re, float im) {
     this.re = re;

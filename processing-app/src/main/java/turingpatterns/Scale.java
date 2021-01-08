@@ -1,120 +1,136 @@
 package turingpatterns;
+
 import java.util.concurrent.CountDownLatch;
 
 class Scale {
-    int w;
-    int h;
+   enum BlurType {
+      Circular,
+      Gaussian
+   }
 
-    int inhibitorRadius;
-    int activatorRadius;
-    int symmetry;
-    float smallAmount;
+   int w;
+   int h;
 
-    float[][] inhibitor;
-    float[][] activator;
-    float[][] variation;
+   int inhibitorRadius;
+   int activatorRadius;
+   int symmetry;
+   float smallAmount;
 
-    Complex[][] kernelFFT;
+   float[][] inhibitor;
+   float[][] activator;
+   float[][] variation;
 
-    int colour;
+   Complex[][] kernelFFT;
 
-    private Scale(Builder builder) {
-        this.w = builder.w;
-        this.h = builder.h;
-        this.inhibitorRadius = builder.inhibitorRadius;
-        this.activatorRadius = builder.activatorRadius;
-        this.symmetry = builder.symmetry;
-        this.smallAmount = builder.smallAmount;
-        this.colour = builder.colour;
+   int colour;
 
-        inhibitor = new float[h][w];
-        activator = new float[h][w];
-        variation = new float[h][w];
+   private Scale(Builder builder) {
+      this.w = builder.w;
+      this.h = builder.h;
+      this.inhibitorRadius = builder.inhibitorRadius;
+      this.activatorRadius = builder.activatorRadius;
+      this.symmetry = builder.symmetry;
+      this.smallAmount = builder.smallAmount;
+      this.colour = builder.colour;
 
-        // Since our kernels use only the real component of the complex number that
-        // is being convolved. We can convolve both kernels at the same time by
-        // putting one kernels values in the real component and the other in the
-        // imaginary component.
-        //
-        // Here we put the activator kernel in the real component and the
-        // inhibitor kernel imaginary component.
-        //
-        // After convolution we can extract the relevant values out of each component
-        // of the result. In this case activator from the real component and inhibitor from
-        // the imaginary component.
-        Complex[][] activatorKernel = Convolution.createKernel(activatorRadius, w, h);
-        Complex[][] inhibitorKernel = Convolution.createKernel(inhibitorRadius, w, h);
-        Complex[][] kernel = new Complex[h][w];
+      inhibitor = new float[h][w];
+      activator = new float[h][w];
+      variation = new float[h][w];
 
-        Complex factor = new Complex(0, 1);
-        for(int y = 0; y < h; y++) {
-            for(int x = 0; x < w; x++) {
-                kernel[y][x] = activatorKernel[y][x].add(inhibitorKernel[y][x].mult(factor));
+      // Since our kernels use only the real component of the complex number that
+      // is being convolved. We can convolve both kernels at the same time by
+      // putting one kernels values in the real component and the other in the
+      // imaginary component.
+      //
+      // Here we put the activator kernel in the real component and the
+      // inhibitor kernel imaginary component.
+      //
+      // After convolution we can extract the relevant values out of each component
+      // of the result. In this case activator from the real component and inhibitor from
+      // the imaginary component.
+
+      Complex[][] activatorKernel;
+      Complex[][] inhibitorKernel;
+
+      if (builder.type == BlurType.Circular) {
+         activatorKernel = Convolution.createCircularKernel(activatorRadius, w, h);
+         inhibitorKernel = Convolution.createCircularKernel(inhibitorRadius, w, h);
+      } else if (builder.type == BlurType.Gaussian) {
+         activatorKernel = Convolution.createGaussianKernel(activatorRadius, w, h);
+         inhibitorKernel = Convolution.createGaussianKernel(inhibitorRadius, w, h);
+      } else {
+         throw new IllegalArgumentException("Unknow BlurType" + builder.type);
+      }
+
+
+      Complex[][] kernel = new Complex[h][w];
+
+      Complex factor = new Complex(0, 1);
+      for (int y = 0; y < h; y++) {
+         for (int x = 0; x < w; x++) {
+            kernel[y][x] = activatorKernel[y][x].add(inhibitorKernel[y][x].mult(factor));
+         }
+      }
+
+      kernelFFT = FFT.fft2d(kernel);
+   }
+
+   void update(Grid g, CountDownLatch latch) {
+      try {
+         // Convolve the merged kernels
+         Complex[][] convolution = Convolution.convolve2d_kernel(this.kernelFFT, g.getGridFFT());
+
+         for (int x = 0; x < w; x++) {
+            for (int y = 0; y < h; y++) {
+               // Extract the separable components from the convolution.
+               float activatorAvg = convolution[y][x].re;
+               float inhibitorAvg = convolution[y][x].im;
+               this.activator[y][x] = activatorAvg;
+               this.inhibitor[y][x] = inhibitorAvg;
+               this.variation[y][x] = Math.abs(activatorAvg - inhibitorAvg);
             }
-        }
+         }
 
-        kernelFFT = FFT.fft2d(kernel);
-    }
+         applySymmetry();
+      } finally {
+         latch.countDown();
+      }
+   }
 
-    void update(Grid g, CountDownLatch latch) {
-        try {
-            // Convolve the merged kernels
-            Complex[][] convolution = Convolution.convolve2d_kernel(this.kernelFFT, g.getGridFFT());
+   void applySymmetry() {
+      if (symmetry > 0) {
+         for (int y = 0; y < h; y++) {
+            for (int x = 0; x < w; x++) {
+               int cx = w / 2;
+               int cy = h / 2;
+               int dx = x - cx;
+               int dy = y - cy;
+               float activatorSum = this.activator[y][x];
+               float inhibitorSum = this.inhibitor[y][x];
+               for (int i = 1; i < symmetry; i++) {
+                  float angle = ((float) i / (float) symmetry) * 2.0f * (float) Math.PI;
+                  float s = (float) Math.sin(angle);
+                  float c = (float) Math.cos(angle);
+                  int symX = (int) ((dx * c - dy * s) + cx);
+                  int symY = (int) ((dy * c + dx * s) + cy);
 
-            for (int x = 0; x < w; x ++) {
-                for (int y = 0; y < h; y++) {
-                    // Extract the separable components from the convolution.
-                    float activatorAvg = convolution[y][x].re;
-                    float inhibitorAvg = convolution[y][x].im;
-                    this.activator[y][x] = activatorAvg;
-                    this.inhibitor[y][x] = inhibitorAvg;
-                    this.variation[y][x] = Math.abs(activatorAvg - inhibitorAvg);
-                }
+                  symX = Convolution.wrapIndex(symX, w);
+                  symY = Convolution.wrapIndex(symY, h);
+
+                  activatorSum += this.activator[symY][symX];
+                  inhibitorSum += this.inhibitor[symY][symX];
+               }
+
+               float activatorAvg = activatorSum / symmetry;
+               float inhibitorAvg = inhibitorSum / symmetry;
+
+               this.activator[y][x] = activatorAvg;
+               this.inhibitor[y][x] = inhibitorAvg;
+               this.variation[y][x] = Math.abs(activatorAvg - inhibitorAvg);
             }
-
-            applySymmetry();
-        } finally {
-            latch.countDown();
-        }
-    }
-
-    void applySymmetry() {
-        if(symmetry > 0) {
-            for(int y = 0; y < h; y++) {
-                for(int x = 0; x < w; x++) {
-                    int cx = w / 2;
-                    int cy = h / 2;
-                    int dx = x - cx;
-                    int dy = y - cy;
-                    float activatorSum = this.activator[y][x];
-                    float inhibitorSum = this.inhibitor[y][x];
-                    for(int i = 1; i < symmetry; i++) {
-                        float angle = ((float) i / (float) symmetry) * 2.0f * (float) Math.PI;
-                        float s = (float) Math.sin(angle);
-                        float c = (float) Math.cos(angle);
-                        int symX = (int)((dx * c - dy * s) + cx);
-                        int symY = (int)((dy * c + dx * s) + cy);
-
-
-                        if(symX >= w) symX = symX - w;
-                        if(symX < 0) symX = w - (-1 * symX);
-                        if(symY >= h) symY = symY - h;
-                        if(symY < 0) symY = h - (-1 * symY);
-
-                        activatorSum += this.activator[symY][symX];
-                        inhibitorSum += this.inhibitor[symY][symX];
-                    }
-
-                    float activatorAvg = activatorSum / symmetry;
-                    float inhibitorAvg = inhibitorSum / symmetry;
-
-                    this.activator[y][x] = activatorAvg;
-                    this.inhibitor[y][x] = inhibitorAvg;
-                    this.variation[y][x] = Math.abs(activatorAvg - inhibitorAvg);
-                }
-            }
-        }
-    }
+         }
+      }
+   }
 
 
     /*
@@ -162,55 +178,62 @@ class Scale {
 }
      */
 
-    public static Builder newBuilder() {
-        return new Builder();
-    }
+   public static Builder newBuilder() {
+      return new Builder();
+   }
 
-    public static class Builder {
-        int w;
-        int h;
+   public static class Builder {
+      private int w;
+      private int h;
 
-        int inhibitorRadius;
-        int activatorRadius;
-        int symmetry = -1;
-        float smallAmount;
+      private BlurType type = BlurType.Gaussian;
 
-        int colour;
+      private int inhibitorRadius;
+      private int activatorRadius;
+      private int symmetry = -1;
+      private float smallAmount;
 
-        public Builder size(int w, int h) {
-            this.w = w;
-            this.h = h;
-            return this;
-        }
+      private int colour;
 
-        public Builder inhibitorRadius(int r) {
-            this.inhibitorRadius = r;
-            return this;
-        }
+      public Builder size(int w, int h) {
+         this.w = w;
+         this.h = h;
+         return this;
+      }
 
-        public Builder activatorRadius(int r) {
-            this.activatorRadius = r;
-            return this;
-        }
+      public Builder blur(BlurType type) {
+         this.type = type;
+         return this;
+      }
 
-        public Builder symmetry(int symmetry) {
-            this.symmetry = symmetry;
-            return this;
-        }
+      public Builder inhibitorRadius(int r) {
+         this.inhibitorRadius = r;
+         return this;
+      }
 
-        public Builder bumpAmount(float amount) {
-            this.smallAmount = amount;
-            return this;
-        }
+      public Builder activatorRadius(int r) {
+         this.activatorRadius = r;
+         return this;
+      }
 
-        public Builder colour(int colour) {
-            this.colour = colour;
-            return this;
-        }
+      public Builder symmetry(int symmetry) {
+         this.symmetry = symmetry;
+         return this;
+      }
 
-        public Scale build() {
-            return new Scale(this);
-        }
-    }
+      public Builder bumpAmount(float amount) {
+         this.smallAmount = amount;
+         return this;
+      }
+
+      public Builder colour(int colour) {
+         this.colour = colour;
+         return this;
+      }
+
+      public Scale build() {
+         return new Scale(this);
+      }
+   }
 
 }
