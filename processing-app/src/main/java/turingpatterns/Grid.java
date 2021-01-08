@@ -14,14 +14,12 @@ class Grid {
 
     private final PApplet applet;
 
-    Scale[] scales;
+    private final Scale[] scales;
 
-    float[][] grid;
-    Complex[][] gridFFT;
+    final float[][] grid;
+    private Complex[][] gridFFT;
 
-    int[][] colors;
-
-    float maxBump = 0;
+    final int[][] colors;
 
     Grid(PApplet applet, Scale[] scales) {
         this.applet = applet;
@@ -30,28 +28,32 @@ class Grid {
 
         this.scales = scales;
 
-        grid = new float[h][w];
-        colors = new int[h][w];
+        this.grid = new float[h][w];
+        this.colors = new int[h][w];
 
+        // initialise the colour for each location to black
         for (int x = 0; x < w; x++) {
             for (int y = 0; y < h; y++) {
                 colors[y][x] = applet.color(0, 0, 0, 255);
             }
         }
 
+        // initialise each cell in the grid to a random number between -1 and 1
         for (int x = 0; x < w; x++) {
             for (int y = 0; y < h; y++) {
                 grid[y][x] = applet.random(-1, 1);
             }
         }
-
-        for (Scale s : scales) {
-            maxBump = max(maxBump, s.smallAmount);
-        }
     }
 
-    void update() {
-        gridFFT = FFT.fft2d(FFT.wrapReals(grid));
+    public void update() {
+        updateScales();
+        updateGridValues();
+        normaliseGridValues();
+    }
+
+    private void updateScales() {
+        this.gridFFT = FFT.fft2d(FFT.wrapReals(grid));
 
         final CountDownLatch latch = new CountDownLatch(scales.length);
         for (final Scale scale : scales) {
@@ -63,7 +65,9 @@ class Grid {
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
 
+    private void updateGridValues() {
         for (int x = 0; x < applet.width; x++) {
             for (int y = 0; y < applet.height; y++) {
                 float minVariation = Float.MAX_VALUE;
@@ -85,7 +89,9 @@ class Grid {
                 }
             }
         }
+    }
 
+    private void normaliseGridValues() {
         float max = 0;
         float min = Float.MAX_VALUE;
         for (int x = 0; x < applet.width; x++) {
@@ -100,5 +106,9 @@ class Grid {
                 grid[y][x] = map(grid[y][x], min, max, -1, 1);
             }
         }
+    }
+
+    Complex[][] getGridFFT() {
+        return this.gridFFT;
     }
 }

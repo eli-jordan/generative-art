@@ -1,11 +1,4 @@
 package turingpatterns;
-
-
-
-//Scale createScale(int w, int h, int activatorRadius, int inhibitorRadius, float smallAmount, color c) {
-//        return new Scale(w, h, activatorRadius, inhibitorRadius, smallAmount, c, 0);
-//        }
-
 import java.util.concurrent.CountDownLatch;
 
 class Scale {
@@ -36,11 +29,6 @@ class Scale {
         activator = new float[h][w];
         variation = new float[h][w];
 
-        if (w != h) {
-            // The kernel initialisation doesn't support it right now. Should be easy to add.
-            throw new IllegalArgumentException("Non-square canvas is not supported");
-        }
-
         // Since our kernels use only the real component of the complex number that
         // is being convolved. We can convolve both kernels at the same time by
         // putting one kernels values in the real component and the other in the
@@ -52,12 +40,12 @@ class Scale {
         // After convolution we can extract the relevant values out of each component
         // of the result. In this case activator from the real component and inhibitor from
         // the imaginary component.
-        Complex[][] activatorKernel = Convolution.createKernel(activatorRadius, w);
-        Complex[][] inhibitorKernel = Convolution.createKernel(inhibitorRadius, w);
-        Complex[][] kernel = new Complex[w][w];
+        Complex[][] activatorKernel = Convolution.createKernel(activatorRadius, w, h);
+        Complex[][] inhibitorKernel = Convolution.createKernel(inhibitorRadius, w, h);
+        Complex[][] kernel = new Complex[h][w];
 
         Complex factor = new Complex(0, 1);
-        for(int y = 0; y < w; y++) {
+        for(int y = 0; y < h; y++) {
             for(int x = 0; x < w; x++) {
                 kernel[y][x] = activatorKernel[y][x].add(inhibitorKernel[y][x].mult(factor));
             }
@@ -69,7 +57,7 @@ class Scale {
     void update(Grid g, CountDownLatch latch) {
 
         // Convolve the merged kernels
-        Complex[][] convolution = Convolution.convolve2d_kernel(this.kernelFFT, g.gridFFT);
+        Complex[][] convolution = Convolution.convolve2d_kernel(this.kernelFFT, g.getGridFFT());
 
         for (int x = 0; x < w; x ++) {
             for (int y = 0; y < h; y++) {

@@ -6,26 +6,28 @@ public class MultiscaleMain extends PApplet {
 
     private Grid g;
     private Colours colours;
+    private ScaleConfigs configs;
 
     @Override
     public void settings() {
-        size(512, 512);
+        size(1024, 512, P2D);
 
     }
 
     @Override
     public void setup() {
-        colours = new Colours(this);
+        this.colours = new Colours(this);
+        this.configs = new ScaleConfigs(this);
 
-        Scale[] scales = new Scale[]{
-                new Scale(width, height, 100, 200, 0.05f, color(255, 0, 0)),
-                new Scale(width, height, 20, 40, 0.04f, color(0, 255, 0)),
-                new Scale(width, height, 10, 20, 0.03f, color(0, 0, 255)),
-                new Scale(width, height, 5, 10, 0.02f, color(155, 0, 255)),
-                new Scale(width, height, 1, 2, 0.01f, color(0, 0, 0))
-        };
+//        Scale[] scales = new Scale[]{
+//                new Scale(width, height, 100, 200, 0.05f, color(255, 0, 0)),
+//                new Scale(width, height, 20, 40, 0.04f, color(0, 255, 0)),
+//                new Scale(width, height, 10, 20, 0.03f, color(0, 0, 255)),
+//                new Scale(width, height, 5, 10, 0.02f, color(155, 0, 255)),
+//                new Scale(width, height, 1, 2, 0.01f, color(0, 0, 0))
+//        };
 
-        g = new Grid(this, scales);
+        g = new Grid(this, this.configs.pastelPalette(1));
     }
 
     @Override

@@ -7,17 +7,17 @@ public class Convolution {
      * Note: The weights need to be centered at (0, 0) and wrap around to the opposite edges to avoid
      * edge effects when used with FFT to perform convolution.
      **/
-    public static Complex[][] createKernel(int radius, int dim) {
+    public static Complex[][] createKernel(int radius, int w, int h) {
         // Center the kernel at (0,0)
         int cx = 0;
         int cy = 0;
         int r = radius;
 
-        Complex[][] kernel = new Complex[dim][dim];
+        Complex[][] kernel = new Complex[h][w];
 
-        for (int i = 0; i < dim; i++) {
-            for (int j = 0; j < dim; j++) {
-                kernel[i][j] = new Complex(0, 0);
+        for (int y = 0; y < h; y++) {
+            for (int x = 0; x < w; x++) {
+                kernel[y][x] = new Complex(0, 0);
             }
         }
 
@@ -27,8 +27,8 @@ public class Convolution {
             for (int y = -yBound; y <= yBound; y++) {
 
                 // We wrap indices to avoid edge effects.
-                int ix = wrapIndex(x + cx, dim);
-                int iy = wrapIndex(y + cy, dim);
+                int ix = wrapIndex(x + cx, w);
+                int iy = wrapIndex(y + cy, h);
 
                 Complex c = new Complex(1.0f / area, 0);
                 kernel[iy][ix] = c;
@@ -64,14 +64,14 @@ public class Convolution {
 
     public static Complex[][] convolve2d_kernel(Complex[][] fftedKernel, Complex[][] inputFFT) {
 
-        int m = fftedKernel.length;
-        int n = fftedKernel[0].length;
+        int h = fftedKernel.length;
+        int w = fftedKernel[0].length;
 
         // point-wise multiply
-        Complex[][] c = new Complex[n][m];
-        for (int i = 0; i < n; i++) {
-            for (int j = 0; j < m; j++) {
-                c[i][j] = fftedKernel[i][j].mult(inputFFT[i][j]);
+        Complex[][] c = new Complex[h][w];
+        for (int y = 0; y < h; y++) {
+            for (int x = 0; x < w; x++) {
+                c[y][x] = fftedKernel[y][x].mult(inputFFT[y][x]);
             }
         }
 
