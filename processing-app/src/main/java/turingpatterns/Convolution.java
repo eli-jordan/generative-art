@@ -42,19 +42,19 @@ public class Convolution {
         return (i % size + size) % size;
     }
 
-    public static Complex[][] convolve2d(Complex[][] x, Complex[][] y) {
+    public static Complex[][] convolve2d(Complex[][] input1, Complex[][] input2) {
         // compute FFT of each sequence
-        Complex[][] a = FFT.fft2d(x);
-        Complex[][] b = FFT.fft2d(y);
+        Complex[][] a = FFT.fft2d(input1);
+        Complex[][] b = FFT.fft2d(input2);
 
-        int m = x.length;
-        int n = x[0].length;
+        int h = input1.length;
+        int w = input1[0].length;
 
         // point-wise multiply
-        Complex[][] c = new Complex[n][m];
-        for (int i = 0; i < n; i++) {
-            for (int j = 0; j < m; j++) {
-                c[i][j] = a[i][j].mult(b[i][j]);
+        Complex[][] c = new Complex[h][w];
+        for (int x = 0; x < w; x++) {
+            for (int y = 0; y < h; y++) {
+                c[y][x] = a[y][x].mult(b[y][x]);
             }
         }
 

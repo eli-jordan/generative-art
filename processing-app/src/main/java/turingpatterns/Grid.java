@@ -2,6 +2,7 @@ package turingpatterns;
 
 import processing.core.PApplet;
 
+import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -14,14 +15,14 @@ class Grid {
 
     private final PApplet applet;
 
-    private final Scale[] scales;
+    private final List<Scale> scales;
 
     final float[][] grid;
     private Complex[][] gridFFT;
 
     final int[][] colors;
 
-    Grid(PApplet applet, Scale[] scales) {
+    Grid(PApplet applet, List<Scale> scales) {
         this.applet = applet;
         int w = applet.width;
         int h = applet.height;
@@ -55,7 +56,7 @@ class Grid {
     private void updateScales() {
         this.gridFFT = FFT.fft2d(FFT.wrapReals(grid));
 
-        final CountDownLatch latch = new CountDownLatch(scales.length);
+        final CountDownLatch latch = new CountDownLatch(scales.size());
         for (final Scale scale : scales) {
             exec.execute(() -> scale.update(this, latch));
         }

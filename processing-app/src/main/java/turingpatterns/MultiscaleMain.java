@@ -10,7 +10,7 @@ public class MultiscaleMain extends PApplet {
 
     @Override
     public void settings() {
-        size(1024, 512, P2D);
+        size(512, 512);
 
     }
 
@@ -27,7 +27,7 @@ public class MultiscaleMain extends PApplet {
 //                new Scale(width, height, 1, 2, 0.01f, color(0, 0, 0))
 //        };
 
-        g = new Grid(this, this.configs.pastelPalette(1));
+        g = new Grid(this, this.configs.pastelPaletteWithSymmetry(1));
     }
 
     @Override
