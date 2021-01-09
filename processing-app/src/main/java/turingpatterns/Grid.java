@@ -74,7 +74,7 @@ class Grid {
             float minVariation = Float.MAX_VALUE;
             Scale bestScale = null;
             for (Scale s : scales) {
-               if (s.variation[y][x] < minVariation) {
+               if (s.variation[y][x] <= minVariation) {
                   minVariation = s.variation[y][x];
                   bestScale = s;
                }

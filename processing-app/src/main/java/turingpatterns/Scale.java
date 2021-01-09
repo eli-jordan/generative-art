@@ -20,6 +20,9 @@ class Scale {
    float[][] activator;
    float[][] variation;
 
+   float[][] nextInhibitor;
+   float[][] nextActivator;
+
    Complex[][] kernelFFT;
 
    int colour;
@@ -33,9 +36,12 @@ class Scale {
       this.smallAmount = builder.smallAmount;
       this.colour = builder.colour;
 
-      inhibitor = new float[h][w];
-      activator = new float[h][w];
-      variation = new float[h][w];
+      this.inhibitor = new float[h][w];
+      this.activator = new float[h][w];
+
+      this.nextActivator = new float[h][w];
+      this.nextInhibitor = new float[h][w];
+      this.variation = new float[h][w];
 
       // Since our kernels use only the real component of the complex number that
       // is being convolved. We can convolve both kernels at the same time by
@@ -77,6 +83,8 @@ class Scale {
 
    void update(Grid g, CountDownLatch latch) {
       try {
+         applySymmetry();
+
          // Convolve the merged kernels
          Complex[][] convolution = Convolution.convolve2d_kernel(this.kernelFFT, g.getGridFFT());
 
@@ -91,92 +99,66 @@ class Scale {
             }
          }
 
-         applySymmetry();
+
       } finally {
          latch.countDown();
       }
    }
 
+   /**
+    * Apply the configured symmetries.
+    *
+    * Note here we use a 'current' and 'next' array for the activator and inhibitor
+    * to avoid averaging based on results that have already been averaged. This could be optimised by
+    * reflecting the average to the symmetrical counter-point.
+    */
    void applySymmetry() {
-      if (symmetry > 0) {
-         for (int y = 0; y < h; y++) {
-            for (int x = 0; x < w; x++) {
-               int cx = w / 2;
-               int cy = h / 2;
-               int dx = x - cx;
-               int dy = y - cy;
-               float activatorSum = this.activator[y][x];
-               float inhibitorSum = this.inhibitor[y][x];
-               for (int i = 1; i < symmetry; i++) {
-                  float angle = ((float) i / (float) symmetry) * 2.0f * (float) Math.PI;
-                  float s = (float) Math.sin(angle);
-                  float c = (float) Math.cos(angle);
-                  int symX = (int) ((dx * c - dy * s) + cx);
-                  int symY = (int) ((dy * c + dx * s) + cy);
+      if (symmetry <= 0) return;
+      int cx = w / 2;
+      int cy = h / 2;
+      for (int y = 0; y < h; y++) {
+         for (int x = 0; x < w; x++) {
+            int dx = x - cx;
+            int dy = y - cy;
+            float activatorSum = this.activator[y][x];
+            float inhibitorSum = this.inhibitor[y][x];
+            int count = 1;
+            for (int i = 1; i <= symmetry; i++) {
+               double angle = (i * 2.0d * Math.PI) / symmetry;
+               double sinA = Math.sin(angle);
+               double cosA = Math.cos(angle);
+               int symX = (int) Math.round(((dx * cosA - dy * sinA) + cx));
+               int symY = (int) Math.round(((dy * cosA + dx * sinA) + cy));
 
-                  symX = Convolution.wrapIndex(symX, w);
-                  symY = Convolution.wrapIndex(symY, h);
+//                  if(symX < 0 || symX >= w) continue;
+//                  if(symY < 0 || symY >= h) continue;
+               symX = Convolution.wrapIndex(symX, w);
+               symY = Convolution.wrapIndex(symY, h);
 
-                  activatorSum += this.activator[symY][symX];
-                  inhibitorSum += this.inhibitor[symY][symX];
-               }
-
-               float activatorAvg = activatorSum / symmetry;
-               float inhibitorAvg = inhibitorSum / symmetry;
-
-               this.activator[y][x] = activatorAvg;
-               this.inhibitor[y][x] = inhibitorAvg;
-               this.variation[y][x] = Math.abs(activatorAvg - inhibitorAvg);
+               activatorSum += this.activator[symY][symX];
+               inhibitorSum += this.inhibitor[symY][symX];
+               count++;
             }
+
+
+            float activatorAvg = activatorSum / count;
+            float inhibitorAvg = inhibitorSum / count;
+
+            this.nextActivator[y][x] = activatorAvg;
+            this.nextInhibitor[y][x] = inhibitorAvg;
          }
       }
+
+      // Swap the current and next activator arrays
+      float[][] aTemp = this.activator;
+      this.activator = this.nextActivator;
+      this.nextInhibitor = aTemp;
+
+      // Swap the current and next inhibitor arrays
+      float[][] iTemp = this.inhibitor;
+      this.inhibitor = this.nextInhibitor;
+      this.nextInhibitor = iTemp;
    }
-
-
-    /*
-    kernel void apply_symmetry_to_scale(texture2d<float, access::read> tex [[ texture(0) ]],
-                                device ScaleCell *scale_state [[ buffer(0) ]],
-                                constant float *grid [[ buffer(1) ]],
-                                constant ScaleConfig *scale_config [[ buffer(2) ]],
-                                uint2 id [[ thread_position_in_grid ]]) {
-
-   int w = tex.get_width();
-   int h = tex.get_height();
-   int idx = linear_index(id.x, id.y, w);
-
-   int2 center = int2(w / 2, h / 2);
-   int dx = id.x - center.x;
-   int dy = id.y - center.y;
-
-//   float r = sqrt(float(dx * dx) + float(dy * dy));
-
-   float activator = scale_state[idx].activator;
-   float inhibitor = scale_state[idx].inhibitor;
-   for(int i = 1; i < scale_config->symmetry; i++) {
-      float angle = ((float) i / (float) scale_config->symmetry) * 2.0f * PI;
-      float s = sin(angle);
-      float c = cos(angle);
-      int x = (dx * c - dy * s) + center.x;
-      int y = (dy * c + dx * s) + center.y;
-
-
-      if(x > w) x = x - w;
-      if(x < 0) x = w - (-1 * x);
-      if(y > h) y = y - h;
-      if(y < 0) y = h - (-1 * y);
-
-      activator += scale_state[linear_index(x, y, w)].activator;
-      inhibitor += scale_state[linear_index(x, y, w)].inhibitor;
-   }
-
-   ScaleCell cell;
-   cell.activator = activator / scale_config->symmetry;
-   cell.inhibitor = inhibitor / scale_config->symmetry;
-   cell.variation = abs(cell.activator - cell.inhibitor);
-
-   scale_state[idx] = cell;
-}
-     */
 
    public static Builder newBuilder() {
       return new Builder();
@@ -186,7 +168,7 @@ class Scale {
       private int w;
       private int h;
 
-      private BlurType type = BlurType.Gaussian;
+      private BlurType type = BlurType.Circular;
 
       private int inhibitorRadius;
       private int activatorRadius;

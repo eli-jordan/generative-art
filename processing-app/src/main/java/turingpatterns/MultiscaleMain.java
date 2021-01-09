@@ -44,8 +44,8 @@ public class MultiscaleMain extends PApplet {
 
       g.update();
       updatePixels();
-      println("Frame Rate: " + frameRate);
-//        saveFrame();
+      println("Frame Rate: " + frameRate + ", Frame Count: " + frameCount);
+      saveFrame("/Users/elias.jordan/creative-code/renders/from-app/frame-####.png");
    }
 
    private int pixelBW(int x, int y) {
