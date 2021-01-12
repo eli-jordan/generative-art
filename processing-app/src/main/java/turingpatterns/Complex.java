@@ -27,10 +27,6 @@ class Complex {
       return (float) Math.sqrt(Math.pow(this.re, 2) + Math.pow(this.im, 2));
    }
 
-   float mag() {
-      return (float) Math.sqrt(re * re + im * im);
-   }
-
    Complex div(Complex that) {
       Complex output = this.mult(that.conjugate());
       float div = (float) Math.pow(that.mod(), 2);

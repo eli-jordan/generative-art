@@ -13,8 +13,11 @@ class Scale {
 
    int inhibitorRadius;
    int activatorRadius;
-   int symmetry;
    float smallAmount;
+
+   int symmetry;
+   int[][][] symmetricalX;
+   int[][][] symmetricalY;
 
    float[][] inhibitor;
    float[][] activator;
@@ -65,7 +68,7 @@ class Scale {
          activatorKernel = Convolution.createGaussianKernel(activatorRadius, w, h);
          inhibitorKernel = Convolution.createGaussianKernel(inhibitorRadius, w, h);
       } else {
-         throw new IllegalArgumentException("Unknow BlurType" + builder.type);
+         throw new IllegalArgumentException("Unknown BlurType " + builder.type);
       }
 
 
@@ -78,35 +81,76 @@ class Scale {
          }
       }
 
-      kernelFFT = FFT.fft2d(kernel);
+      this.kernelFFT = FFT.fft2d(kernel);
+      precalculateSymmetryIndices();
+   }
+
+   /**
+    * We precalculate the symmetrical indices once, then simply look them up for every frame.
+    * Avoiding all those repeated trig functions is a significant performance boost.
+    */
+   private void precalculateSymmetryIndices() {
+
+      this.symmetricalX = new int[h][w][symmetry];
+      this.symmetricalY = new int[h][w][symmetry];
+
+      int cx = w / 2;
+      int cy = h / 2;
+      for (int y = 0; y < h; y++) {
+         for (int x = 0; x < w; x++) {
+            int dx = x - cx;
+            int dy = y - cy;
+            for (int i = 1; i < symmetry; i++) {
+               double angle = (i * 2.0d * Math.PI) / symmetry;
+               double sinA = Math.sin(angle);
+               double cosA = Math.cos(angle);
+               int symX = (int) Math.floor(((dx * cosA - dy * sinA) + cx));
+               int symY = (int) Math.floor(((dy * cosA + dx * sinA) + cy));
+
+               symX = Convolution.wrapIndex(symX, w);
+               symY = Convolution.wrapIndex(symY, h);
+
+               this.symmetricalX[y][x][i] = symX;
+               this.symmetricalY[y][x][i] = symY;
+            }
+         }
+      }
    }
 
    void update(Grid g, CountDownLatch latch) {
       try {
+         applyBlur(g);
          applySymmetry();
-
-         // Convolve the merged kernels
-         Complex[][] convolution = Convolution.convolve2d_kernel(this.kernelFFT, g.getGridFFT());
-
-         for (int x = 0; x < w; x++) {
-            for (int y = 0; y < h; y++) {
-               // Extract the separable components from the convolution.
-               float activatorAvg = convolution[y][x].re;
-               float inhibitorAvg = convolution[y][x].im;
-               this.activator[y][x] = activatorAvg;
-               this.inhibitor[y][x] = inhibitorAvg;
-               this.variation[y][x] = Math.abs(activatorAvg - inhibitorAvg);
-            }
-         }
-
-
+         updateVariation();
       } finally {
          latch.countDown();
       }
    }
 
    /**
+    * Runs the blur/averaging algorithm using FFT
+    */
+   void applyBlur(Grid g) {
+      // Convolve the merged kernels
+      Complex[][] convolution = Convolution.convolve2d_kernel(this.kernelFFT, g.getGridFFT());
+
+      for (int x = 0; x < w; x++) {
+         for (int y = 0; y < h; y++) {
+            // Extract the separable components from the convolution.
+            float activatorAvg = convolution[y][x].re;
+            float inhibitorAvg = convolution[y][x].im;
+            this.activator[y][x] = activatorAvg;
+            this.inhibitor[y][x] = inhibitorAvg;
+         }
+      }
+   }
+
+
+   /**
     * Apply the configured symmetries.
+    *
+    * To apply symmetries the activator and inhibitor values are averaged at several counter-points
+    * that are rotated around the center of the canvas.
     *
     * Note here we use a 'current' and 'next' array for the activator and inhibitor
     * to avoid averaging based on results that have already been averaged. This could be optimised by
@@ -114,35 +158,31 @@ class Scale {
     */
    void applySymmetry() {
       if (symmetry <= 0) return;
-      int cx = w / 2;
-      int cy = h / 2;
+
       for (int y = 0; y < h; y++) {
          for (int x = 0; x < w; x++) {
-            int dx = x - cx;
-            int dy = y - cy;
             float activatorSum = this.activator[y][x];
             float inhibitorSum = this.inhibitor[y][x];
-            int count = 1;
-            for (int i = 1; i <= symmetry; i++) {
-               double angle = (i * 2.0d * Math.PI) / symmetry;
-               double sinA = Math.sin(angle);
-               double cosA = Math.cos(angle);
-               int symX = (int) Math.round(((dx * cosA - dy * sinA) + cx));
-               int symY = (int) Math.round(((dy * cosA + dx * sinA) + cy));
+            for (int i = 1; i < symmetry; i++) {
+//               double angle = (i * 2.0d * Math.PI) / symmetry;
+//               double sinA = Math.sin(angle);
+//               double cosA = Math.cos(angle);
+//               int symX = (int) Math.floor(((dx * cosA - dy * sinA) + cx));
+//               int symY = (int) Math.floor(((dy * cosA + dx * sinA) + cy));
+//
+//               symX = Convolution.wrapIndex(symX, w);
+//               symY = Convolution.wrapIndex(symY, h);
 
-//                  if(symX < 0 || symX >= w) continue;
-//                  if(symY < 0 || symY >= h) continue;
-               symX = Convolution.wrapIndex(symX, w);
-               symY = Convolution.wrapIndex(symY, h);
+               int symY = this.symmetricalY[y][x][i];
+               int symX = this.symmetricalX[y][x][i];
 
                activatorSum += this.activator[symY][symX];
                inhibitorSum += this.inhibitor[symY][symX];
-               count++;
             }
 
 
-            float activatorAvg = activatorSum / count;
-            float inhibitorAvg = inhibitorSum / count;
+            float activatorAvg = activatorSum / symmetry;
+            float inhibitorAvg = inhibitorSum / symmetry;
 
             this.nextActivator[y][x] = activatorAvg;
             this.nextInhibitor[y][x] = inhibitorAvg;
@@ -152,12 +192,23 @@ class Scale {
       // Swap the current and next activator arrays
       float[][] aTemp = this.activator;
       this.activator = this.nextActivator;
-      this.nextInhibitor = aTemp;
+      this.nextActivator = aTemp;
 
       // Swap the current and next inhibitor arrays
       float[][] iTemp = this.inhibitor;
       this.inhibitor = this.nextInhibitor;
       this.nextInhibitor = iTemp;
+   }
+
+   /**
+    * Updates the variation for each cell based on the latest activator and inhibitor values.
+    */
+   void updateVariation() {
+      for (int x = 0; x < w; x++) {
+         for (int y = 0; y < h; y++) {
+            this.variation[y][x] = Math.abs(this.activator[y][x] - this.inhibitor[y][x]);
+         }
+      }
    }
 
    public static Builder newBuilder() {
@@ -168,7 +219,7 @@ class Scale {
       private int w;
       private int h;
 
-      private BlurType type = BlurType.Circular;
+      private BlurType type = BlurType.Gaussian;
 
       private int inhibitorRadius;
       private int activatorRadius;
@@ -188,13 +239,13 @@ class Scale {
          return this;
       }
 
-      public Builder inhibitorRadius(int r) {
-         this.inhibitorRadius = r;
+      public Builder inhibitorRadius(float r) {
+         this.inhibitorRadius = (int) r;
          return this;
       }
 
-      public Builder activatorRadius(int r) {
-         this.activatorRadius = r;
+      public Builder activatorRadius(float r) {
+         this.activatorRadius = (int) r;
          return this;
       }
 
@@ -217,5 +268,4 @@ class Scale {
          return new Scale(this);
       }
    }
-
 }

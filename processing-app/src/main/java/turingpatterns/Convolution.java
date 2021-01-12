@@ -52,6 +52,7 @@ public class Convolution {
          }
       }
 
+      float sigma = radius / 1.5f;
       float sum = 0;
       for (int y = -h / 2; y < h / 2; y++) {
          for (int x = -w / 2; x < w / 2; x++) {
@@ -59,9 +60,8 @@ public class Convolution {
             int ix = wrapIndex(x + cx, w);
             int iy = wrapIndex(y + cy, h);
 
-            float xpart = ((float) x * x) / (2.0f * r * r);
-            float ypart = ((float) y * y) / (2.0f * r * r);
-            float v = 5.0f * (float) Math.exp(-(xpart + ypart));
+            float v = (float) Math.exp(-0.5 * (Math.pow(x/sigma, 2) + Math.pow(y/sigma, 2)));
+            v /= 2 * Math.PI * sigma * sigma;
             sum += v;
 
             Complex c = new Complex(v, 0);

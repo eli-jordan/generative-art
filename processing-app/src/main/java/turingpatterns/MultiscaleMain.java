@@ -9,8 +9,7 @@ public class MultiscaleMain extends PApplet {
 
    @Override
    public void settings() {
-      size(1024, 1024);
-
+      size(2048, 2048);
    }
 
    @Override
@@ -18,15 +17,10 @@ public class MultiscaleMain extends PApplet {
       this.colours = new Colours(this);
       ScaleConfigs configs = new ScaleConfigs(this);
 
-//        Scale[] scales = new Scale[]{
-//                new Scale(width, height, 100, 200, 0.05f, color(255, 0, 0)),
-//                new Scale(width, height, 20, 40, 0.04f, color(0, 255, 0)),
-//                new Scale(width, height, 10, 20, 0.03f, color(0, 0, 255)),
-//                new Scale(width, height, 5, 10, 0.02f, color(155, 0, 255)),
-//                new Scale(width, height, 1, 2, 0.01f, color(0, 0, 0))
-//        };
-
-      g = new Grid(this, configs.pastelPaletteWithSymmetry(1));
+      g = Grid.newBuilder(this)
+          .scales(configs.pastelPaletteWithSymmetry(3))
+          .deltas(Grid::multiScaleDelta)
+          .build();
    }
 
    @Override
@@ -45,7 +39,7 @@ public class MultiscaleMain extends PApplet {
       g.update();
       updatePixels();
       println("Frame Rate: " + frameRate + ", Frame Count: " + frameCount);
-      saveFrame("/Users/elias.jordan/creative-code/renders/from-app/frame-####.png");
+      saveFrame("/Users/elias.jordan/creative-code/renders/pastel-sym-2048-2/frame-####.png");
    }
 
    private int pixelBW(int x, int y) {

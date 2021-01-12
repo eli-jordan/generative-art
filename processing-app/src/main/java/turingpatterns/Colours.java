@@ -140,33 +140,4 @@ public class Colours {
          return "HSV[" + hu + ", " + s + ", " + v + "]";
       }
    }
-
-
-//    void testColourConversion() {
-//
-//        color red = color(255, 0, 0);
-//        println("red: " + createRGB(red).toHSV().toRGB());
-//
-//        color green = color(0, 255, 0);
-//        println("green: " + createRGB(green).toHSV().toRGB());
-//
-//        color blue = color(0, 0, 255);
-//        println("blue: " + createRGB(blue).toHSV().toRGB());
-//
-//        color white = color(255, 255, 255);
-//        println("white: " + createRGB(white).toHSV().toRGB());
-//
-//        color black = color(0, 0, 0);
-//        println("black: " + createRGB(black).toHSV().toRGB());
-//
-//        color yellow = color(255, 255, 0);
-//        println("yellow: " + createRGB(yellow).toHSV().toRGB());
-//
-//        color teal = color(0, 255, 255);
-//        println("teal: " + createRGB(teal).toHSV().toRGB());
-//
-//        color pink = color(255, 0, 255);
-//        println("pink: " + createRGB(pink).toHSV().toRGB());
-//    }
-
 }

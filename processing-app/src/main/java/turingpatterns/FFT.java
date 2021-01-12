@@ -111,7 +111,6 @@ public class FFT {
       for (int y = 0; y < ydim; y++) {
          result[y] = ifft(values[y]);
       }
-      //println("ifft2d: inverse-fft-rows took: " + (end - start) + " ms");
 
       result = transpose(result);
 

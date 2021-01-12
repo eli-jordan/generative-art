@@ -1,6 +1,6 @@
 
-int GridSize = 16;
-int BlurRadius = 3;
+int GridSize = 64;
+int BlurRadius = 16;
 
 void setup() {
   size(1024, 1024);
@@ -38,7 +38,7 @@ void runConvolutionOnCenteredSquare() {
   // Render the fft convolution kernel
   push();
   translate(0, 512);
-  float[][] kernelValues = getRenderValues(kernel, 0, 0.1); 
+  float[][] kernelValues = getRenderValues(kernel, 0, 0.2); 
   render(kernelValues, scale);
   pop();
 
@@ -128,6 +128,15 @@ Complex[][] createCircularKernel(int radius, int dim) {
   return kernel;
 }
 
+/*
+exp( 
+   -0.5 * (
+      pow((x-mean)/sigma, 2.0) + 
+      pow((y-mean)/sigma, 2.0)
+   ) 
+)
+                         / (2 * M_PI * sigma * sigma);
+*/
 Complex[][] createGaussianKernal(int radius, int dim) {
   // Center the kernel at (0,0)
   int cx = 0;
@@ -141,7 +150,9 @@ Complex[][] createGaussianKernal(int radius, int dim) {
       kernel[i][j] = new Complex(0, 0);
     }
   }
-
+ 
+  float sigma = r / 2.0f;
+  
   float sum = 0;
   for (int y = -dim/2; y < dim/2; y++) {
     for (int x = -dim/2; x < dim/2; x++) {
@@ -149,7 +160,9 @@ Complex[][] createGaussianKernal(int radius, int dim) {
       int ix = wrapIndex(x + cx, dim);
       int iy = wrapIndex(y + cy, dim);
 
-      float v = (float) Math.exp(-(x*x/(2*r*r)  + y*y/(2*r*r)));
+      float v = (float) Math.exp(-0.5 * (Math.pow(x/sigma, 2) + Math.pow(y/sigma, 2)));
+      v /= TWO_PI * sigma * sigma;
+
       sum += v;
 
       Complex c = new Complex(v, 0);
@@ -157,21 +170,6 @@ Complex[][] createGaussianKernal(int radius, int dim) {
     }
   }
 
-  //float sum = 0;
-  //for (int x = -r; x <= r; x++) {
-  //  for (int y = -r; y <= r; y++) {
-
-  //    // We wrap indices to avoid edge effects.
-  //    int ix = wrapIndex(x + cx, dim);
-  //    int iy = wrapIndex(y + cy, dim);
-
-  //    float v = (float) Math.exp(-(x*x/2*r*r + y*y/2*r*r));
-  //    sum += v;
-
-  //    Complex c = new Complex(v, 0);
-  //    kernel[iy][ix] = c;
-  //  }
-  //}
 
   for (int y = -dim/2; y < dim/2; y++) {
     for (int x = -dim/2; x < dim/2; x++) {
