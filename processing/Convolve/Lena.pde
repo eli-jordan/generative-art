@@ -15,7 +15,7 @@ void blurLenaImage() {
     }
   }
   
-  Complex[][] kernel = createKernel(radius, 512);
+  Complex[][] kernel = createCircularKernel(radius, 512);
   
   Complex[][] result = convolve2d_fft(data, kernel);
   

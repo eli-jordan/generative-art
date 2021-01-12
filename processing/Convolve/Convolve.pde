@@ -1,11 +1,11 @@
 
-int GridSize = 16;
-int BlurRadius = 3;
+int GridSize = 64;
+int BlurRadius = 16;
 
 void setup() {
   size(1024, 1024);
   runConvolutionOnCenteredSquare();
-  
+
   //size(512, 512);
   //blurLenaImage();
 }
@@ -15,33 +15,33 @@ void setup() {
 void runConvolutionOnCenteredSquare() {
   Complex[][] data = centeredSquare();
 
-  Complex[][] kernel = createKernel(BlurRadius, GridSize);
+  Complex[][] kernel = createGaussianKernal(BlurRadius, GridSize); //createCircularKernel(BlurRadius, GridSize);
   Complex[][] resultFFT = convolve2d_fft(data, kernel);
   Complex[][] resultBruteForce = convolve2d_brute_force(data);
 
   int scale = 512 / GridSize;
-  
+
   // Render the source image
   push();
   translate(0, 0);
   float[][] sourceValues = getRenderValues(data, 0, 1);
   render(sourceValues, scale);
   pop();
-  
+
   // Render the brute-force blurred image
   push();
   translate(512, 0);
   float[][] bfValues = getRenderValues(resultBruteForce, 0, 1);
   render(bfValues, scale);
   pop();
-  
+
   // Render the fft convolution kernel
   push();
   translate(0, 512);
   float[][] kernelValues = getRenderValues(kernel, 0, 0.2); 
   render(kernelValues, scale);
   pop();
-  
+
   // Render the fft convolution blurred image
   push();
   translate(512, 512);
@@ -66,7 +66,7 @@ private float[][] getRenderValues(Complex[][] data, float rngStart, float rngEnd
 /*
  Creates an arry representing a white square (as the value 1) in the center
  of a black grid (value 0).
-*/
+ */
 Complex[][] centeredSquare() {
   int dim = GridSize;
   Complex[][] data = new Complex[dim][dim];
@@ -95,9 +95,9 @@ Complex[][] centeredSquare() {
  Creates a convolution kernel with weights representing an average in a circular region.
  
  Note: The weights need to be centered at (0, 0) and wrap around to the opposite edges to avoid 
-       edge effects when used with FFT to perform convolution.
-*/
-Complex[][] createKernel(int radius, int dim) {
+ edge effects when used with FFT to perform convolution.
+ */
+Complex[][] createCircularKernel(int radius, int dim) {
   // Center the kernel at (0,0)
   int cx = 0;
   int cy = 0;
@@ -122,6 +122,64 @@ Complex[][] createKernel(int radius, int dim) {
 
       Complex c = new Complex(1.0f / area, 0);
       kernel[iy][ix] = c;
+    }
+  }
+
+  return kernel;
+}
+
+/*
+exp( 
+   -0.5 * (
+      pow((x-mean)/sigma, 2.0) + 
+      pow((y-mean)/sigma, 2.0)
+   ) 
+)
+                         / (2 * M_PI * sigma * sigma);
+*/
+Complex[][] createGaussianKernal(int radius, int dim) {
+  // Center the kernel at (0,0)
+  int cx = 0;
+  int cy = 0;
+  int r = radius;
+
+  Complex[][] kernel = new Complex[dim][dim];
+
+  for (int i = 0; i < dim; i++) {
+    for (int j = 0; j < dim; j++) {
+      kernel[i][j] = new Complex(0, 0);
+    }
+  }
+ 
+  float sigma = r / 2.0f;
+  
+  float sum = 0;
+  for (int y = -dim/2; y < dim/2; y++) {
+    for (int x = -dim/2; x < dim/2; x++) {
+      // We wrap indices to avoid edge effects.
+      int ix = wrapIndex(x + cx, dim);
+      int iy = wrapIndex(y + cy, dim);
+
+      float v = (float) Math.exp(-0.5 * (Math.pow(x/sigma, 2) + Math.pow(y/sigma, 2)));
+      v /= TWO_PI * sigma * sigma;
+
+      sum += v;
+
+      Complex c = new Complex(v, 0);
+      kernel[iy][ix] = c;
+    }
+  }
+
+
+  for (int y = -dim/2; y < dim/2; y++) {
+    for (int x = -dim/2; x < dim/2; x++) {
+
+      // We wrap indices to avoid edge effects.
+      int ix = wrapIndex(x + cx, dim);
+      int iy = wrapIndex(y + cy, dim);
+
+      kernel[iy][ix].re /= sum;
+      println("Kernel Value: " +  kernel[iy][ix].re);
     }
   }
 
