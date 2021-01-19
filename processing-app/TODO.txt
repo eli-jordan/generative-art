@@ -1,0 +1,12 @@
+* Experiment more with the "compound" turing pattern coupling
+* Use both "compound" and "multi-scale" patterns together, where each scale in a
+  multi-scale pattern is made up of a compound pattern.
+* Use different shaped convolution kernels. By using an ellipse, we can make the diffusion stronger in one direction.
+    - See "Reaction-Diffusion Textures" Witkin and Kass '91
+* Orient the major axis of the elliptical kernel to a flow field.
+* Simulate 3 coupled "layers" of reaction, where there is a layer for each colour component (i.e. RGB)
+* Write a UI that allows the configs to be setup.
+* Create a serialisation format for the parameters.
+    - Allow the parameters to be saved out and loaded back in.
+    - Handling saving the random seed.
+    - When reading back in, the same random seed can be used, or just the same parameters and a new random seed.

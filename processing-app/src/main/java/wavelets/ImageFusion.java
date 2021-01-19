@@ -1,30 +1,80 @@
 package wavelets;
 
-import jwave.Transform;
 import jwave.tools.MathToolKit;
-import jwave.transforms.FastWaveletTransform;
-import jwave.transforms.wavelets.haar.Haar1;
 import processing.core.PApplet;
 import processing.core.PImage;
-import turingpatterns.MultiscaleMain;
-
-import java.util.Arrays;
 
 public class ImageFusion extends PApplet {
 
    @Override
    public void settings() {
       size(512, 512);
+
    }
 
    @Override
    public void setup() {
-      Transform transform = new Transform(new FastWaveletTransform(new Haar1()));
+      swapCoeffsTest();
+      println(g.getClass());
+   }
 
-//
-//      double[][] lena1 = getImageData("/Users/elias.jordan/Desktop/lena/lena1.png");
-//      double[][] lena2 = getImageData("/Users/elias.jordan/Desktop/lena/lena2.png");
+   private void swapCoeffsTest() {
+      double[][] image = getImageDataGreyscale("/Users/elias.jordan/Desktop/lena/a1.png");
+      println(MathToolKit.getExponent(512.0));
 
+//      Coefficients2d imageC = Coefficients2d.from(image);
+
+
+
+      // 1 -> 2x2
+      // 2 -> 4x4
+      // 3 -> 8x8
+      // n -> 2^n x 2^n
+
+      double[][] data = Coefficients2d.transform.forward(image, 4, 4);
+
+      loadPixels();
+      for (int y = 0; y < height; y++) {
+         for (int x = 0; x < width; x++) {
+            int index = x + y * width;
+            pixels[index] = color(
+                (float) data[y][x]
+            );
+         }
+      }
+
+      updatePixels();
+   }
+
+   private void repairTest() {
+      double[][] lena1 = getImageDataGreyscale("/Users/elias.jordan/Desktop/lena/lena1.png");
+      double[][] lena2 = getImageDataGreyscale("/Users/elias.jordan/Desktop/lena/lena2.png");
+
+      Coefficients2d lena1C = Coefficients2d.from(lena1);
+      Coefficients2d lena2C = Coefficients2d.from(lena2);
+
+      // Good for repair
+      lena1C.applyA(lena2C, Math::max);
+      lena1C.applyH(lena2C, Math::max);
+      lena1C.applyV(lena2C, Math::max);
+      lena1C.applyD(lena2C, Math::max);
+
+      double[][] data = lena1C.inverse();
+
+      loadPixels();
+      for (int y = 0; y < height; y++) {
+         for (int x = 0; x < width; x++) {
+            int index = x + y * width;
+            pixels[index] = color(
+                (float) data[y][x]
+            );
+         }
+      }
+
+      updatePixels();
+   }
+
+   private void facesTest() {
       double[][][] merge1 = getImageDataColour("/Users/elias.jordan/Desktop/lena/a1.png");
       Coefficients2d merge1R = Coefficients2d.from(merge1[0]);
       Coefficients2d merge1G = Coefficients2d.from(merge1[1]);
@@ -35,30 +85,13 @@ public class ImageFusion extends PApplet {
       Coefficients2d merge2G = Coefficients2d.from(merge2[1]);
       Coefficients2d merge2B = Coefficients2d.from(merge2[2]);
 
-      merge1R.meanMean(merge2R);
-      merge1G.meanMean(merge2G);
-      merge1B.meanMean(merge2B);
+      merge1R.minMean(merge2R);
+      merge1G.minMean(merge2G);
+      merge1B.minMean(merge2B);
 
       double[][] dataR = merge1R.inverse();
       double[][] dataG = merge1G.inverse();
       double[][] dataB = merge1B.inverse();
-
-
-//      Coefficients2d lena1C = Coefficients2d.from(merge1);
-//      Coefficients2d lena2C = Coefficients2d.from(merge2);
-
-      // Good for repair
-//      lena1C.applyA(lena2C, Math::max);
-//      lena1C.applyH(lena2C, Math::max);
-//      lena1C.applyV(lena2C, Math::max);
-//      lena1C.applyD(lena2C, Math::max);
-
-//            lena1C.applyA(lena2C, (a, b) -> (a + b) / 2.0);
-//      lena1C.applyH(lena2C, Math::max);
-//      lena1C.applyV(lena2C, Math::max);
-//      lena1C.applyD(lena2C, Math::max);
-
-//      double[][] data = lena1C.inverse();
 
       loadPixels();
       for (int y = 0; y < height; y++) {
@@ -68,12 +101,13 @@ public class ImageFusion extends PApplet {
                 (float) dataR[y][x],
                 (float) dataG[y][x],
                 (float) dataB[y][x]
-             );
+            );
          }
       }
 
       updatePixels();
    }
+
 
 
    private double[][][] getImageDataColour(String path) {

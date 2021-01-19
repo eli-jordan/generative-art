@@ -10,6 +10,7 @@ import jwave.transforms.wavelets.daubechies.*;
 import jwave.transforms.wavelets.haar.Haar1;
 
 import java.util.Arrays;
+import java.util.Random;
 import java.util.function.DoubleFunction;
 
 interface DoubleFunction1 {
@@ -23,7 +24,7 @@ interface DoubleFunction2 {
 public class Coefficients2d {
 
    private static Wavelet wavelet = new Daubechies2();
-   private static Transform transform = new Transform(new FastWaveletTransform(wavelet));
+   static Transform transform = new Transform(new FastWaveletTransform(wavelet));
 
    int xdim, ydim;
    double[][] cA;
@@ -40,6 +41,15 @@ public class Coefficients2d {
       this.cD = cD;
    }
 
+   static Random random = new Random();
+
+   void random(Coefficients2d b) {
+      this.applyA(b, (x, y) -> random.nextGaussian() <= 0.5 ? x : y);
+      this.applyH(b, (x, y) -> random.nextGaussian() <= 0.5 ? x : y);
+      this.applyV(b, (x, y) -> random.nextGaussian() <= 0.5 ? x : y);
+      this.applyD(b, (x, y) -> random.nextGaussian() <= 0.5 ? x : y);
+   }
+
    void maxMax(Coefficients2d b) {
       this.applyA(b, Math::max);
       this.applyH(b, Math::max);
@@ -47,11 +57,32 @@ public class Coefficients2d {
       this.applyD(b, Math::max);
    }
 
+   void maxMin(Coefficients2d b) {
+      this.applyA(b, Math::max);
+      this.applyH(b, Math::min);
+      this.applyV(b, Math::min);
+      this.applyD(b, Math::min);
+   }
+
    void maxMean(Coefficients2d b) {
       this.applyA(b, Math::max);
       this.applyH(b, (x, y) -> (x + y) / 2.0);
       this.applyV(b, (x, y) -> (x + y) / 2.0);
       this.applyD(b, (x, y) -> (x + y) / 2.0);
+   }
+
+   void minMean(Coefficients2d b) {
+      this.applyA(b, Math::min);
+      this.applyH(b, (x, y) -> (x + y) / 2.0);
+      this.applyV(b, (x, y) -> (x + y) / 2.0);
+      this.applyD(b, (x, y) -> (x + y) / 2.0);
+   }
+
+   void minMax(Coefficients2d b) {
+      this.applyA(b, Math::min);
+      this.applyH(b, Math::max);
+      this.applyV(b, Math::max);
+      this.applyD(b, Math::max);
    }
 
    void meanMax(Coefficients2d b) {
