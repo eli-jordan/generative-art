@@ -18,7 +18,7 @@ public class MultiscaleMain extends PApplet {
       ScaleConfigs configs = new ScaleConfigs(this);
 
       g = Grid.newBuilder(this)
-          .scales(configs.pastelPaletteWithSymmetry(3))
+          .scales(configs.pastelPaletteWithSymmetry(1))
           .deltas(Grid::multiScaleDelta)
           .build();
    }
@@ -39,7 +39,7 @@ public class MultiscaleMain extends PApplet {
       g.update();
       updatePixels();
       println("Frame Rate: " + frameRate + ", Frame Count: " + frameCount);
-      saveFrame("/Users/elias.jordan/creative-code/renders/pastel-sym-2048-2/frame-####.png");
+      saveFrame("/Users/elias.jordan/creative-code/renders/pastel-sym-2048-3/frame-####.png");
    }
 
    private int pixelBW(int x, int y) {
