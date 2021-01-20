@@ -1,21 +1,15 @@
 package turingpatterns;
 
+import turingpatterns.config.ScaleConfig;
+
 import java.util.concurrent.CountDownLatch;
 
 class Scale {
-   enum BlurType {
-      Circular,
-      Gaussian
-   }
 
-   int w;
-   int h;
+   ScaleConfig config;
 
-   int inhibitorRadius;
-   int activatorRadius;
-   float smallAmount;
+   int w, h;
 
-   int symmetry;
    int[][][] symmetricalX;
    int[][][] symmetricalY;
 
@@ -28,16 +22,10 @@ class Scale {
 
    Complex[][] kernelFFT;
 
-   int colour;
-
-   private Scale(Builder builder) {
-      this.w = builder.w;
-      this.h = builder.h;
-      this.inhibitorRadius = builder.inhibitorRadius;
-      this.activatorRadius = builder.activatorRadius;
-      this.symmetry = builder.symmetry;
-      this.smallAmount = builder.smallAmount;
-      this.colour = builder.colour;
+   Scale(ScaleConfig config) {
+      this.config = config;
+      h = config.height;
+      w = config.width;
 
       this.inhibitor = new float[h][w];
       this.activator = new float[h][w];
@@ -61,14 +49,14 @@ class Scale {
       Complex[][] activatorKernel;
       Complex[][] inhibitorKernel;
 
-      if (builder.type == BlurType.Circular) {
-         activatorKernel = Convolution.createCircularKernel(activatorRadius, w, h);
-         inhibitorKernel = Convolution.createCircularKernel(inhibitorRadius, w, h);
-      } else if (builder.type == BlurType.Gaussian) {
-         activatorKernel = Convolution.createGaussianKernel(activatorRadius, w, h);
-         inhibitorKernel = Convolution.createGaussianKernel(inhibitorRadius, w, h);
+      if (config.blurType == ScaleConfig.BlurType.Circular) {
+         activatorKernel = Convolution.createCircularKernel(this.config.activatorRadius, w, h);
+         inhibitorKernel = Convolution.createCircularKernel(this.config.inhibitorRadius, w, h);
+      } else if (config.blurType == ScaleConfig.BlurType.Gaussian) {
+         activatorKernel = Convolution.createGaussianKernel(this.config.activatorRadius, w, h);
+         inhibitorKernel = Convolution.createGaussianKernel(this.config.inhibitorRadius, w, h);
       } else {
-         throw new IllegalArgumentException("Unknown BlurType " + builder.type);
+         throw new IllegalArgumentException("Unknown BlurType " + config.blurType);
       }
 
 
@@ -91,8 +79,8 @@ class Scale {
     */
    private void precalculateSymmetryIndices() {
 
-      this.symmetricalX = new int[h][w][symmetry];
-      this.symmetricalY = new int[h][w][symmetry];
+      this.symmetricalX = new int[h][w][this.config.symmetry];
+      this.symmetricalY = new int[h][w][this.config.symmetry];
 
       int cx = w / 2;
       int cy = h / 2;
@@ -100,8 +88,8 @@ class Scale {
          for (int x = 0; x < w; x++) {
             int dx = x - cx;
             int dy = y - cy;
-            for (int i = 1; i < symmetry; i++) {
-               double angle = (i * 2.0d * Math.PI) / symmetry;
+            for (int i = 1; i < this.config.symmetry; i++) {
+               double angle = (i * 2.0d * Math.PI) / this.config.symmetry;
                double sinA = Math.sin(angle);
                double cosA = Math.cos(angle);
                int symX = (int) Math.floor(((dx * cosA - dy * sinA) + cx));
@@ -157,22 +145,13 @@ class Scale {
     * reflecting the average to the symmetrical counter-point.
     */
    void applySymmetry() {
-      if (symmetry <= 0) return;
+      if (this.config.symmetry <= 0) return;
 
       for (int y = 0; y < h; y++) {
          for (int x = 0; x < w; x++) {
             float activatorSum = this.activator[y][x];
             float inhibitorSum = this.inhibitor[y][x];
-            for (int i = 1; i < symmetry; i++) {
-//               double angle = (i * 2.0d * Math.PI) / symmetry;
-//               double sinA = Math.sin(angle);
-//               double cosA = Math.cos(angle);
-//               int symX = (int) Math.floor(((dx * cosA - dy * sinA) + cx));
-//               int symY = (int) Math.floor(((dy * cosA + dx * sinA) + cy));
-//
-//               symX = Convolution.wrapIndex(symX, w);
-//               symY = Convolution.wrapIndex(symY, h);
-
+            for (int i = 1; i < this.config.symmetry; i++) {
                int symY = this.symmetricalY[y][x][i];
                int symX = this.symmetricalX[y][x][i];
 
@@ -181,8 +160,8 @@ class Scale {
             }
 
 
-            float activatorAvg = activatorSum / symmetry;
-            float inhibitorAvg = inhibitorSum / symmetry;
+            float activatorAvg = activatorSum / this.config.symmetry;
+            float inhibitorAvg = inhibitorSum / this.config.symmetry;
 
             this.nextActivator[y][x] = activatorAvg;
             this.nextInhibitor[y][x] = inhibitorAvg;
@@ -208,64 +187,6 @@ class Scale {
          for (int y = 0; y < h; y++) {
             this.variation[y][x] = Math.abs(this.activator[y][x] - this.inhibitor[y][x]);
          }
-      }
-   }
-
-   public static Builder newBuilder() {
-      return new Builder();
-   }
-
-   public static class Builder {
-      private int w;
-      private int h;
-
-      private BlurType type = BlurType.Gaussian;
-
-      private int inhibitorRadius;
-      private int activatorRadius;
-      private int symmetry = -1;
-      private float smallAmount;
-
-      private int colour;
-
-      public Builder size(int w, int h) {
-         this.w = w;
-         this.h = h;
-         return this;
-      }
-
-      public Builder blur(BlurType type) {
-         this.type = type;
-         return this;
-      }
-
-      public Builder inhibitorRadius(float r) {
-         this.inhibitorRadius = (int) r;
-         return this;
-      }
-
-      public Builder activatorRadius(float r) {
-         this.activatorRadius = (int) r;
-         return this;
-      }
-
-      public Builder symmetry(int symmetry) {
-         this.symmetry = symmetry;
-         return this;
-      }
-
-      public Builder bumpAmount(float amount) {
-         this.smallAmount = amount;
-         return this;
-      }
-
-      public Builder colour(int colour) {
-         this.colour = colour;
-         return this;
-      }
-
-      public Scale build() {
-         return new Scale(this);
       }
    }
 }

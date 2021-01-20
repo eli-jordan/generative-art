@@ -10,14 +10,14 @@ import java.util.concurrent.Executors;
 
 import static processing.core.PApplet.*;
 
-interface CellDeltas {
+interface ScaleCouplingAtCell {
    float delta(Grid g, int x, int y);
 }
 
 class Grid {
 
    /**
-    * The {@link CellDeltas} function for multi-scale turing patterns.
+    * The {@link ScaleCouplingAtCell} function for multi-scale turing patterns.
     * <p>
     * It selects the scale with the smallest variation and bumps the
     * current value based on its config.
@@ -32,18 +32,18 @@ class Grid {
          }
       }
 
-      float colourBump = max(bestScale.smallAmount * 5, 0.001f);
-      g.colors[y][x] = g.applet.lerpColor(g.colors[y][x], bestScale.colour, colourBump);
+      float colourBump = max(bestScale.config.smallAmount * 5, 0.001f);
+      g.colors[y][x] = g.applet.lerpColor(g.colors[y][x], bestScale.config.colour, colourBump);
 
       if (bestScale.activator[y][x] > bestScale.inhibitor[y][x]) {
-         return bestScale.smallAmount;
+         return bestScale.config.smallAmount;
       } else {
-         return -bestScale.smallAmount;
+         return -bestScale.config.smallAmount;
       }
    }
 
    /**
-    * The {@link CellDeltas} function for compound turing patterns.
+    * The {@link ScaleCouplingAtCell} function for compound turing patterns.
     * <p>
     * It sums the increment for all scales.
     */
@@ -51,9 +51,9 @@ class Grid {
       float value = 0;
       for (Scale scale : g.scales) {
          if (scale.activator[y][x] > scale.inhibitor[y][x]) {
-            value += scale.smallAmount;
+            value += scale.config.smallAmount;
          } else {
-            value -= scale.smallAmount;
+            value -= scale.config.smallAmount;
          }
       }
       value /= g.scales.size();
@@ -64,7 +64,7 @@ class Grid {
 
    private final PApplet applet;
 
-   private final CellDeltas deltas;
+   private final ScaleCouplingAtCell deltas;
 
    private final List<Scale> scales;
 
@@ -94,6 +94,13 @@ class Grid {
       // initialise each cell in the grid to a random number between -1 and 1
       for (int x = 0; x < w; x++) {
          for (int y = 0; y < h; y++) {
+            grid[y][x] = applet.random(-1, 1);
+         }
+      }
+
+      // initialise each cell in the grid to a random number between -1 and 1
+      for (int x = 0; x < applet.width; x++) {
+         for (int y = 0; y < applet.height; y++) {
             grid[y][x] = applet.random(-1, 1);
          }
       }
@@ -173,14 +180,14 @@ class Grid {
 
    static class Builder {
       private final PApplet applet;
-      private CellDeltas deltas;
+      private ScaleCouplingAtCell deltas;
       private List<Scale> scales;
 
       private Builder(PApplet applet) {
          this.applet = applet;
       }
 
-      public Builder deltas(CellDeltas deltas) {
+      public Builder scaleCoupling(ScaleCouplingAtCell deltas) {
          this.deltas = deltas;
          return this;
       }
