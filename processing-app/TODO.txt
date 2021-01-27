@@ -6,7 +6,3 @@
 * Orient the major axis of the elliptical kernel to a flow field.
 * Simulate 3 coupled "layers" of reaction, where there is a layer for each colour component (i.e. RGB)
 * Write a UI that allows the configs to be setup.
-* Create a serialisation format for the parameters.
-    - Allow the parameters to be saved out and loaded back in.
-    - Handling saving the random seed.
-    - When reading back in, the same random seed can be used, or just the same parameters and a new random seed.
