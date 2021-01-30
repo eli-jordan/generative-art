@@ -1,6 +1,8 @@
-package turingpatterns;
+package turingpatterns.sketches;
 
 import processing.core.PApplet;
+import turingpatterns.ScaleConfiguarions;
+import turingpatterns.TuringPatternApplet;
 import turingpatterns.config.RunConfig;
 
 public class PastelWithSymmetry extends TuringPatternApplet {

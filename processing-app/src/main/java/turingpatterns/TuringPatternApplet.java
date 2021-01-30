@@ -22,7 +22,7 @@ public abstract class TuringPatternApplet extends PApplet {
    /* The configuration for this run. Should be set in the constructor of a subclass*/
    protected RunConfig runConfig;
 
-   /* The render used to render the gird to the screen */
+   /* Used to render the grid to the screen */
    private Renderer renderer;
 
    /* Persistence helper used to load and store the RunConfig */

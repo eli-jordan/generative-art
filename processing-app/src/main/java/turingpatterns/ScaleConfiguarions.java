@@ -11,11 +11,11 @@ public class ScaleConfiguarions {
 
    private PApplet applet;
 
-   ScaleConfiguarions(PApplet applet) {
+   public ScaleConfiguarions(PApplet applet) {
       this.applet = applet;
    }
 
-   public List<ScaleConfig.Builder> pastelPalette(int factor) {
+   public List<ScaleConfig.Builder> pastelPalette(float factor) {
       int w = applet.width;
       int h = applet.height;
 
@@ -161,7 +161,7 @@ public class ScaleConfiguarions {
       return scales;
    }
 
-   List<ScaleConfig.Builder> symmetryExperiment() {
+   public List<ScaleConfig.Builder> symmetryExperiment() {
       int w = applet.width;
       int h = applet.height;
 
