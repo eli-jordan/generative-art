@@ -8,7 +8,7 @@ public class Colours {
 
    private final PApplet applet;
 
-   Colours(PApplet applet) {
+   public Colours(PApplet applet) {
       this.applet = applet;
    }
 
@@ -28,7 +28,7 @@ public class Colours {
       float b;
       float a;
 
-      HSVValue toHSV() {
+      public HSVValue toHSV() {
          HSVValue result = new HSVValue();
          result.a = a;
 
@@ -64,7 +64,7 @@ public class Colours {
          return result;
       }
 
-      int toColor() {
+      public int toColor() {
          return applet.color(
              map(r, 0, 1, 0, 255),
              map(g, 0, 1, 0, 255),
@@ -79,12 +79,12 @@ public class Colours {
    }
 
    public class HSVValue {
-      float hu;
-      float s;
-      float v;
-      float a;
+      public float hu;
+      public float s;
+      public float v;
+      public float a;
 
-      RGBValue toRGB() {
+      public RGBValue toRGB() {
          RGBValue result = new RGBValue();
          if (s == 0) {
             result.r = v;

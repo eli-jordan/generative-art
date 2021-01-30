@@ -1,10 +1,13 @@
 package turingpatterns;
 
 import turingpatterns.config.ScaleConfig;
-
+import warp.WorleyNoise;
+import static processing.core.PApplet.*;
 import java.util.concurrent.CountDownLatch;
 
 class Scale {
+
+   private static WorleyNoise worley = WorleyNoise.getInstance();
 
    ScaleConfig config;
 
@@ -21,6 +24,8 @@ class Scale {
    float[][] nextActivator;
 
    Complex[][] kernelFFT;
+
+   int frame = 0;
 
    Scale(ScaleConfig config) {
       this.config = config;
@@ -107,8 +112,10 @@ class Scale {
 
    void update(Grid g, CountDownLatch latch) {
       try {
+         frame++;
          applyBlur(g);
          applySymmetry();
+         applyWarp();
          updateVariation();
       } finally {
          latch.countDown();
@@ -168,6 +175,10 @@ class Scale {
          }
       }
 
+      swap();
+   }
+
+   private void swap() {
       // Swap the current and next activator arrays
       float[][] aTemp = this.activator;
       this.activator = this.nextActivator;
@@ -186,6 +197,73 @@ class Scale {
       for (int x = 0; x < w; x++) {
          for (int y = 0; y < h; y++) {
             this.variation[y][x] = Math.abs(this.activator[y][x] - this.inhibitor[y][x]);
+         }
+      }
+   }
+
+   void applyWarp() {
+      applyActivatorWarp();
+      applyInhibitorWarp();
+      swap();
+   }
+
+
+   void applyActivatorWarp() {
+      float weight = this.config.activatorRadius / 2.0f;
+      float z0 = frame * 0.005f;
+      for(int x = 0; x < w; x++) {
+         for(int y = 0; y < h; y++) {
+            float x0 = x * 0.005f;
+            float y0 = y * 0.005f;
+
+            float x1 = worley.noise(x0, y0, z0);
+            float y1 = worley.noise(x0 + 1.212f, y0 + 2.381f, z0);
+
+//            float x2 = worley.noise(x0 + 2.0f * x1 + 1.7f, y0 + 2.0f * y1 + 9.2f);
+//            float y2 = worley.noise(x0 + 2.0f * x1 + 8.3f, y0 + 2.0f * y1 + 8.2f);
+
+            int xf = x + (int) map(x1, 0, 1, -weight, weight);
+            int yf = y + (int) map(y1, 0, 1, -weight, weight);
+
+            if(xf >= w) xf = w - 1;
+            if(xf < 0) xf = 0;
+
+
+            if(yf >= h) yf = h - 1;
+            if(yf < 0) yf = 0;
+
+            this.nextActivator[y][x] = this.activator[yf][xf];
+//            this.nextInhibitor[y][x] = this.inhibitor[yf][xf];
+         }
+      }
+   }
+
+   void applyInhibitorWarp() {
+      float weight = this.config.inhibitorRadius / 2.0f;
+      float z0 = frame * 0.005f;
+      for(int x = 0; x < w; x++) {
+         for(int y = 0; y < h; y++) {
+            float x0 = x * 0.005f;
+            float y0 = y * 0.005f;
+
+            float x1 = worley.noise(x0, y0, z0);
+            float y1 = worley.noise(x0 + 1.212f, y0 + 2.381f, z0);
+
+//            float x2 = worley.noise(x0 + 2.0f * x1 + 1.7f, y0 + 2.0f * y1 + 9.2f);
+//            float y2 = worley.noise(x0 + 2.0f * x1 + 8.3f, y0 + 2.0f * y1 + 8.2f);
+
+            int xf = x + (int) map(x1, 0, 1, -weight, weight);
+            int yf = y + (int) map(y1, 0, 1, -weight, weight);
+
+            if(xf >= w) xf = w - 1;
+            if(xf < 0) xf = 0;
+
+
+            if(yf >= h) yf = h - 1;
+            if(yf < 0) yf = 0;
+
+//            this.nextActivator[y][x] = this.activator[yf][xf];
+            this.nextInhibitor[y][x] = this.inhibitor[yf][xf];
          }
       }
    }

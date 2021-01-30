@@ -132,23 +132,6 @@ class Grid {
          for (int y = 0; y < applet.height; y++) {
             float delta = this.deltas.delta(this, x, y);
             grid[y][x] += delta;
-//            float minVariation = Float.MAX_VALUE;
-//            Scale bestScale = null;
-//            for (Scale s : scales) {
-//               if (s.variation[y][x] <= minVariation) {
-//                  minVariation = s.variation[y][x];
-//                  bestScale = s;
-//               }
-//            }
-//
-//            float colourBump = max(bestScale.smallAmount * 5, 0.001f);
-//            colors[y][x] = applet.lerpColor(colors[y][x], bestScale.colour, colourBump);
-//
-//            if (bestScale.activator[y][x] > bestScale.inhibitor[y][x]) {
-//               grid[y][x] += bestScale.smallAmount;
-//            } else {
-//               grid[y][x] -= bestScale.smallAmount;
-//            }
          }
       }
    }

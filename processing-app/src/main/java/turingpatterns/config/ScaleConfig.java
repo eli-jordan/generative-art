@@ -27,7 +27,7 @@ public class ScaleConfig {
    public int inhibitorRadius;
    public int activatorRadius;
    public float smallAmount;
-   public BlurType blurType;
+   public BlurType blurType = BlurType.Circular;
    public int colour;
    public int symmetry;
    public int width;
