@@ -56,7 +56,7 @@ class Grid {
             value -= scale.config.smallAmount;
          }
       }
-      value /= g.scales.size();
+//      value /= g.scales.size();
       return value;
    }
 
