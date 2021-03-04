@@ -1,5 +1,6 @@
 package turingpatterns;
 
+import org.jtransforms.fft.DoubleFFT_2D;
 import turingpatterns.config.ScaleConfig;
 import warp.WorleyNoise;
 import static processing.core.PApplet.*;
@@ -8,6 +9,8 @@ import java.util.concurrent.CountDownLatch;
 class Scale {
 
    private static WorleyNoise worley = WorleyNoise.getInstance();
+
+   private DoubleFFT_2D fft;
 
    ScaleConfig config;
 
@@ -23,7 +26,8 @@ class Scale {
    float[][] nextInhibitor;
    float[][] nextActivator;
 
-   Complex[][] kernelFFT;
+   double[][] kernelFFT;
+   double[][] multiplyBuffer;
 
    int frame = 0;
 
@@ -31,6 +35,8 @@ class Scale {
       this.config = config;
       h = config.height;
       w = config.width;
+
+      this.fft = new DoubleFFT_2D(h, w);
 
       this.inhibitor = new float[h][w];
       this.activator = new float[h][w];
@@ -51,30 +57,39 @@ class Scale {
       // of the result. In this case activator from the real component and inhibitor from
       // the imaginary component.
 
-      Complex[][] activatorKernel;
-      Complex[][] inhibitorKernel;
+      double[][] activatorKernel;
+      double[][] inhibitorKernel;
 
       if (config.blurType == ScaleConfig.BlurType.Circular) {
-         activatorKernel = Convolution.createCircularKernel(this.config.activatorRadius, w, h);
-         inhibitorKernel = Convolution.createCircularKernel(this.config.inhibitorRadius, w, h);
-      } else if (config.blurType == ScaleConfig.BlurType.Gaussian) {
-         activatorKernel = Convolution.createGaussianKernel(this.config.activatorRadius, w, h);
-         inhibitorKernel = Convolution.createGaussianKernel(this.config.inhibitorRadius, w, h);
-      } else {
+         activatorKernel = Convolution.createRealCircularKernel(this.config.activatorRadius, w, h);
+         inhibitorKernel = Convolution.createRealCircularKernel(this.config.inhibitorRadius, w, h);
+      }
+//      else if (config.blurType == ScaleConfig.BlurType.Gaussian) {
+//         activatorKernel = Convolution.createGaussianKernel(this.config.activatorRadius, w, h);
+//         inhibitorKernel = Convolution.createGaussianKernel(this.config.inhibitorRadius, w, h);
+//      }
+      else {
          throw new IllegalArgumentException("Unknown BlurType " + config.blurType);
       }
 
 
-      Complex[][] kernel = new Complex[h][w];
+      this.multiplyBuffer = new double[h][2*w];
+      double[][] kernel = new double[h][2*w];
 
-      Complex factor = new Complex(0, 1);
+//      Complex factor = new Complex(0, 1);
       for (int y = 0; y < h; y++) {
          for (int x = 0; x < w; x++) {
-            kernel[y][x] = activatorKernel[y][x].add(inhibitorKernel[y][x].mult(factor));
+            // Put the activator kernel in the real component
+            kernel[y][2*x] = activatorKernel[y][x];
+
+            // Put the inhibitor kernel in the imaginary component
+            kernel[y][2*x + 1] = inhibitorKernel[y][x];
+//            kernel[y][x] = activatorKernel[y][x].add(inhibitorKernel[y][x].mult(factor));
          }
       }
+      this.fft.complexForward(kernel);
 
-      this.kernelFFT = FFT.fft2d(kernel);
+      this.kernelFFT = kernel;
       precalculateSymmetryIndices();
    }
 
@@ -115,7 +130,7 @@ class Scale {
          frame++;
          applyBlur(g);
          applySymmetry();
-         applyWarp();
+//         applyWarp();
          updateVariation();
       } finally {
          latch.countDown();
@@ -127,17 +142,42 @@ class Scale {
     */
    void applyBlur(Grid g) {
       // Convolve the merged kernels
-      Complex[][] convolution = Convolution.convolve2d_kernel(this.kernelFFT, g.getGridFFT());
+//      Complex[][] convolution = Convolution.convolve2d_kernel(this.kernelFFT, g.getGridFFT());
 
       for (int x = 0; x < w; x++) {
          for (int y = 0; y < h; y++) {
-            // Extract the separable components from the convolution.
-            float activatorAvg = convolution[y][x].re;
-            float inhibitorAvg = convolution[y][x].im;
-            this.activator[y][x] = activatorAvg;
-            this.inhibitor[y][x] = inhibitorAvg;
+
+            // Perform the complex number multiplication
+
+            double thisRe = this.kernelFFT[y][2*x];
+            double thatRe = g.getGridFFT()[y][2*x];
+
+            double thisIm = this.kernelFFT[y][2*x + 1];
+            double thatIm = g.getGridFFT()[y][2*x + 1];
+
+            double real = thisRe * thatRe - thisIm * thatIm;
+            double imaginary = thisRe * thatIm + thisIm * thatRe;
+
+            this.multiplyBuffer[y][2*x] = real;
+            this.multiplyBuffer[y][2*x + 1] = imaginary;
          }
       }
+
+      this.fft.complexInverse(this.multiplyBuffer, true);
+
+      for (int x = 0; x < w; x++) {
+         for (int y = 0; y < h; y++) {
+
+            // Extract the separable components from the convolution.
+            double activatorAvg = this.multiplyBuffer[y][2*x];
+            double inhibitorAvg = this.multiplyBuffer[y][2*x + 1];
+
+            this.activator[y][x] = (float) activatorAvg;
+            this.inhibitor[y][x] = (float) inhibitorAvg;
+         }
+      }
+
+
    }
 
 

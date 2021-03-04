@@ -1,8 +1,9 @@
 package turingpatterns;
 
-class Complex {
-   float re;
-   float im;
+public class Complex {
+
+   public float re;
+   public float im;
 
    Complex(float re, float im) {
       this.re = re;
