@@ -10,11 +10,27 @@ import java.util.List;
 
 public class CompoundPatternExperiments extends TuringPatternApplet {
 
-   public CompoundPatternExperiments() {
-      this.runConfig = RunConfig.newBuilder()
-          .size(1024, 1024)
+   float scale = 1.0f;
+
+   @Override
+   public void settings() {
+      size(4096, 2048);
+   }
+
+   @Override
+   public void draw() {
+      super.draw();
+      if(frameCount > 1000) {
+         exit();
+      }
+   }
+
+   @Override
+   protected RunConfig createRunConfig() {
+      return RunConfig.newBuilder()
+          .size(width, height)
           .scaleCoupling(RunConfig.ScaleCoupling.Compound)
-          .renderer(RunConfig.RenderType.Grayscale)
+          .renderer(RunConfig.RenderType.Colour)
           .addScales(fig4_experiment())
           .build();
    }
@@ -23,99 +39,66 @@ public class CompoundPatternExperiments extends TuringPatternApplet {
 
       List<ScaleConfig.Builder> configs = new ArrayList<>();
 
-//      configs.add(
-//          ScaleConfig.newBuilder()
-//              .activatorRadius(100)
-//              .inhibitorRadius(300)
-//              .smallAmount(0.05f)
-//              .blur(ScaleConfig.BlurType.Circular)
-//              .colour(color(255))
-//      );
-
       configs.add(
           ScaleConfig.newBuilder()
-              .activatorRadius(150)
-              .inhibitorRadius(480)
-              .smallAmount(-0.08f)
-              .blur(ScaleConfig.BlurType.Circular)
-              .colour(color(255))
-      );
-
-
-      configs.add(
-          ScaleConfig.newBuilder()
-              .activatorRadius(150)
-              .inhibitorRadius(480)
+              .activatorRadius(450 * scale)
+              .inhibitorRadius(1440 * scale)
               .smallAmount(-0.05f)
               .blur(ScaleConfig.BlurType.Circular)
-              .colour(color(255))
+              .colour(color(0, 0, 0))
       );
 
       configs.add(
           ScaleConfig.newBuilder()
-              .activatorRadius(18)
-              .inhibitorRadius(36)
+              .activatorRadius(450 * scale)
+              .inhibitorRadius(1440 * scale)
+              .smallAmount(-0.025f)
+              .blur(ScaleConfig.BlurType.Circular)
+              .colour(color(0, 0, 0))
+      );
+
+      configs.add(
+          ScaleConfig.newBuilder()
+              .activatorRadius(150 * scale)
+              .inhibitorRadius(480 * scale)
+              .smallAmount(-0.08f)
+              .blur(ScaleConfig.BlurType.Circular)
+              .colour(color(35, 130, 64))
+      );
+
+
+      configs.add(
+          ScaleConfig.newBuilder()
+              .activatorRadius(150 * scale)
+              .inhibitorRadius(480 * scale)
+              .smallAmount(-0.05f)
+              .blur(ScaleConfig.BlurType.Circular)
+              .colour(color(18, 82, 180))
+      );
+
+      configs.add(
+          ScaleConfig.newBuilder()
+              .activatorRadius(18 * scale)
+              .inhibitorRadius(36 * scale)
               .smallAmount(0.085f)
               .blur(ScaleConfig.BlurType.Circular)
-              .colour(color(255))
+              .colour(color(248, 66, 30))
       );
 
       configs.add(
           ScaleConfig.newBuilder()
-              .activatorRadius(6)
-              .inhibitorRadius(12)
+              .activatorRadius(6 * scale)
+              .inhibitorRadius(12 * scale)
               .smallAmount(-0.1f)
               .blur(ScaleConfig.BlurType.Circular)
-              .colour(color(255))
+              .colour(color(150, 0, 128))
       );
 
-//      configs.add(
-//          ScaleConfig.newBuilder()
-//              .activatorRadius(12.5f)
-//              .inhibitorRadius(25)
-//              .smallAmount(0.05f)
-//              .blur(ScaleConfig.BlurType.Circular)
-//              .colour(color(255))
-//      );
-
-//      configs.add(
-//          ScaleConfig.newBuilder()
-//              .activatorRadius(10)
-//              .inhibitorRadius(20)
-//              .smallAmount(-0.05f)
-//              .blur(ScaleConfig.BlurType.Circular)
-//              .colour(color(255))
-//      );
-//
-//      configs.add(
-//          ScaleConfig.newBuilder()
-//              .activatorRadius(15)
-//              .inhibitorRadius(53)
-//              .smallAmount(-0.05f)
-//              .blur(ScaleConfig.BlurType.Circular)
-//              .colour(color(255))
-//      );
-
-//      configs.add(
-//          ScaleConfig.newBuilder()
-//              .activatorRadius(150/f/f)
-//              .inhibitorRadius(300/f/f)
-//              .smallAmount(-0.05f)
-//              .blur(ScaleConfig.BlurType.Circular)
-//              .colour(color(255))
-//      );
-
-//      configs.add(
-//          ScaleConfig.newBuilder()
-//              .activatorRadius(150/f/f/f)
-//              .inhibitorRadius(300/f/f/f)
-//              .smallAmount(0.05f)
-//              .blur(ScaleConfig.BlurType.Circular)
-//              .colour(color(255))
-//      );
-
-
       return configs;
+   }
+
+   private int hsv(float h, float s, float v) {
+      return colours.createHSV(h, s / 100f, v / 100f, 1.0f).toRGB().toColor();
    }
 
    private List<ScaleConfig.Builder> nestedDotsAndStripes2() {

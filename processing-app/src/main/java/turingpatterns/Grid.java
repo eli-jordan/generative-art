@@ -1,6 +1,7 @@
 package turingpatterns;
 
 import processing.core.PApplet;
+import turingpatterns.sketches.Gradient;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -47,17 +48,80 @@ class Grid {
     * <p>
     * It sums the increment for all scales.
     */
-   static float compoundScaleDelta(Grid g, int x, int y) {
-      float value = 0;
-      for (Scale scale : g.scales) {
-         if (scale.activator[y][x] > scale.inhibitor[y][x]) {
-            value += scale.config.smallAmount;
-         } else {
-            value -= scale.config.smallAmount;
+   static ScaleCouplingAtCell compoundScaleDelta(PApplet applet) {
+//      Gradient grad = Gradient.earthy2(applet);
+
+//      Gradient grad = new Gradient(
+//          applet.color(0),
+//          applet.color(140, 47, 48),
+//          applet.color(214,170,112),
+//          applet.color(160,191,204),
+//          applet.color(160,191,204),
+//          applet.color(139,156,123),
+//          applet.color(255)
+//      );
+
+//      Gradient grad = new Gradient(
+////          applet.color(160,191,204),
+//          applet.color(214,170,112),
+//          applet.color(139,156,123),
+////          applet.color(225,128,129),
+//          applet.color(140, 47, 48),
+////          applet.color(178, 94, 65),
+//          applet.color(0)
+//      );
+
+//      Gradient grad = new Gradient(
+//          applet.color(152, 49, 44),
+//          applet.color(219, 206, 182),
+//          applet.color(176, 111, 74),
+//          applet.color(219, 206, 182),
+//          applet.color(212, 117, 99)
+//      );
+
+//      Gradient grad = new Gradient(
+//          applet.color(179, 160, 145),
+//          applet.color(214,170,112),
+//          applet.color(140, 47, 48),
+//          applet.color(50, 45, 50),
+//          applet.color(20, 20, 20)
+//      );
+
+//      Gradient grad = new Gradient(
+//          applet.color(179, 160, 145),
+//          applet.color(214,170,112),
+//          applet.color(140, 47, 48),
+//          applet.color(140, 47, 48),
+//          applet.color(50, 45, 50),
+//          applet.color(20, 20, 20)
+//      );
+
+      Gradient grad = new Gradient(
+          applet.color(179, 160, 145),
+          applet.color(214,170,112),
+          applet.color(140, 47, 48),
+          applet.color(50, 45, 50),
+          applet.color(20, 20, 20)
+      );
+
+      return (Grid g, int x, int y) -> {
+         float value = 0;
+//      int colour = g.colors[y][x];
+         for (Scale scale : g.scales) {
+            if (scale.activator[y][x] > scale.inhibitor[y][x]) {
+               value += scale.config.smallAmount;
+//            colour = lerpColor(colour, scale.config.colour, scale.config.smallAmount * 5, RGB);
+            } else {
+               value -= scale.config.smallAmount;
+//            colour = lerpColor(colour, scale.config.colour, -scale.config.smallAmount * 5, RGB);
+            }
          }
-      }
-//      value /= g.scales.size();
-      return value;
+
+         float amt = map(g.grid[y][x], -1, 1, 0, 0.9999f);
+         g.colors[y][x] = grad.at(amt);
+
+         return value;
+      };
    }
 
    private final static ExecutorService exec = Executors.newWorkStealingPool();

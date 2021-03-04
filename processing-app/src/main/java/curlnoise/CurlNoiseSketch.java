@@ -15,7 +15,7 @@ public class CurlNoiseSketch extends PApplet {
    int resolution = 5;
    VectorField field;
 
-   final float perlinDetail = 0.01f;
+   final float perlinDetail = 0.02f;
    final float worleyDetail = 0.03f;
 
    int agentCount = 10000;
