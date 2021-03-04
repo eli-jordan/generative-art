@@ -69,15 +69,15 @@ class ColourRenderer implements Renderer {
       int c = this.grid.colors[y][x];
 
       Colours.RGBValue rgb = colours.createRGB(applet.red(c), applet.green(c), applet.blue(c), applet.alpha(c));
-      Colours.HSVValue hsv = rgb.toHSV();
-      hsv.v = map(this.grid.grid[y][x], -1, 1, 0, 1);
+//      Colours.HSVValue hsv = rgb.toHSV();
+//      hsv.v = map(this.grid.grid[y][x], -1, 1, 0.3f, 1);
 
-      Colours.RGBValue newColour = hsv.toRGB();
+      Colours.RGBValue newColour = rgb; //hsv.toRGB();
 
-      float gamma = 1.1f;
-      newColour.r = (float) Math.pow(newColour.r, gamma);
-      newColour.g = (float) Math.pow(newColour.g, gamma);
-      newColour.b = (float) Math.pow(newColour.b, gamma);
+//      float gamma = 1.3f;
+//      newColour.r = (float) Math.pow(newColour.r, gamma);
+//      newColour.g = (float) Math.pow(newColour.g, gamma);
+//      newColour.b = (float) Math.pow(newColour.b, gamma);
 
       return newColour.toColor();
    }

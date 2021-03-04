@@ -115,7 +115,7 @@ class Scale {
          frame++;
          applyBlur(g);
          applySymmetry();
-         applyWarp();
+//         applyWarp();
          updateVariation();
       } finally {
          latch.countDown();

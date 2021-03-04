@@ -22,6 +22,10 @@ public class Colours {
       return result;
    }
 
+   public HSVValue createHSV(float h, float s, float v, float a) {
+      return new HSVValue(h, s, v, a);
+   }
+
    public class RGBValue {
       float r;
       float g;
@@ -29,39 +33,38 @@ public class Colours {
       float a;
 
       public HSVValue toHSV() {
-         HSVValue result = new HSVValue();
-         result.a = a;
+         float h, s, v;
 
          float minV = Math.min(r, Math.min(g, b));
          float maxV = Math.max(r, Math.max(g, b));
-         result.v = maxV;
+         v = maxV;
          float delta = maxV - minV;
 
          if (maxV != 0) {
-            result.s = delta / maxV;
+            s = delta / maxV;
          } else {
-            result.hu = -1;
-            result.s = 0;
-            result.v = -1;
-            return result;
+            h = -1;
+            s = 0;
+            v = -1;
+            return new HSVValue(h, s, v, a);
          }
 
          if (delta == 0) {
-            result.hu = 0;
+            h = 0;
          } else if (r == maxV) {
-            result.hu = (g - b) / delta;
+            h = (g - b) / delta;
          } else if (g == maxV) {
-            result.hu = 2 + (b - r) / delta;
+            h = 2 + (b - r) / delta;
          } else {
-            result.hu = 4 + (r - g) / delta;
+            h = 4 + (r - g) / delta;
          }
 
-         result.hu *= 60;
-         if (result.hu < 0) {
-            result.hu += 360;
+         h *= 60;
+         if (h < 0) {
+            h += 360;
          }
 
-         return result;
+         return new HSVValue(h, s, v, a);
       }
 
       public int toColor() {
@@ -83,6 +86,13 @@ public class Colours {
       public float s;
       public float v;
       public float a;
+
+      HSVValue(float h, float s, float v, float a) {
+         this.hu = h;
+         this.s = s;
+         this.v = v;
+         this.a = a;
+      }
 
       public RGBValue toRGB() {
          RGBValue result = new RGBValue();

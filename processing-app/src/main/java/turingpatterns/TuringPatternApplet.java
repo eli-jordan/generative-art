@@ -28,8 +28,12 @@ public abstract class TuringPatternApplet extends PApplet {
    /* Persistence helper used to load and store the RunConfig */
    private ConfigPersistence persistence;
 
+   protected Colours colours;
+
    @Override
-   public final void settings() {
+   public void setup() {
+      this.colours = new Colours(this);
+      this.runConfig = createRunConfig();
       // Save the configuration
       this.persistence = new ConfigPersistence(this.getClass().getSimpleName());
       this.persistence.save(this.runConfig);
@@ -53,12 +57,15 @@ public abstract class TuringPatternApplet extends PApplet {
       }
    }
 
+   protected abstract RunConfig createRunConfig();
+
+
    private Grid createGrid() {
       Grid.Builder builder = Grid.newBuilder(this);
       if (runConfig.coupling == RunConfig.ScaleCoupling.MultiScale) {
          builder.scaleCoupling(Grid::multiScaleDelta);
       } else if (runConfig.coupling == RunConfig.ScaleCoupling.Compound) {
-         builder.scaleCoupling(Grid::compoundScaleDelta);
+         builder.scaleCoupling(Grid.compoundScaleDelta(this));
       } else {
          throw new IllegalStateException("Unrecognised ScaleCoupling: " + runConfig.coupling);
       }
