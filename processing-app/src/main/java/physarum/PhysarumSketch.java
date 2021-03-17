@@ -1,6 +1,7 @@
 package physarum;
 
 import processing.core.PApplet;
+import turingpatterns.config.ConfigPersistence;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -8,6 +9,8 @@ import java.util.List;
 public class PhysarumSketch extends PApplet {
 
    private Physarum physarum;
+
+   private ConfigPersistence config = new ConfigPersistence(this.getClass().getSimpleName());
 
    @Override
    public void settings() {
@@ -21,21 +24,38 @@ public class PhysarumSketch extends PApplet {
 
    @Override
    public void setup() {
-//      frameRate(5);
-      List<PhysarumAgent> agents = new ArrayList<>();
-      for(int i = 0; i < 20000; i++) {
-         float x = width/2f + random(100) * cos(radians(random(360)));
-         float y = height/2f + random(100) * sin(radians(random(360)));
+//      frameRate(2);
+      Physarum.Builder builder = Physarum.newBuilder()
+          .size(width, height)
+          .blurRadius(2)
+          .evaporationRate(0.75f);
+
+      float agentCount = (width * height) * 0.5f;
+//      float agentCount = 20000;
+      for (int i = 0; i < agentCount; i++) {
+
+         float x = (width / 2f) + random((width/2f)*0.1f, (width/2f)*0.8f) * cos(radians(i/5f + random(-1, 1)));
+         float y = (height / 2f) + random((width/2f)*0.1f, (width/2f)*0.8f) * sin(radians(i/5f + random(-1, 1)));
 
 //         float x = random(0, width);
 //         float y = random(0, height);
 
-         PhysarumAgent agent = new PhysarumAgent(this, x, y);
+         PhysarumAgent agent = PhysarumAgent.newBuilder()
+             .applet(this)
+             .senseAngle(45 + random(-5, 5))
+             .turnAngle(22.5f)// + random(-10, 10))
+             .senseDistance(9)// + random(-3, 3))
+             .moveDistance(2)// + random(-1, 1))
+             .depositAmount(10)
+             .position(x, y)
+             .build();
 
-         agents.add(agent);
+         builder.addAgent(agent);
       }
 
-      this.physarum = new Physarum(this.width, this.height, agents);
+      this.physarum = builder.build();
+
+      println("Rendered frames saved at: " + config.saveDir().getAbsolutePath());
    }
 
    @Override
@@ -43,55 +63,34 @@ public class PhysarumSketch extends PApplet {
       this.physarum.update();
 
       double min = -1;
-      for(int y = 0; y < width; y++) {
-         for(int x = 0; x < width; x++) {
+      for (int y = 0; y < width; y++) {
+         for (int x = 0; x < width; x++) {
             min = Math.min(min, this.physarum.trail[y][x]);
          }
       }
 
       double max = -1;
-      for(int y = 0; y < width; y++) {
-         for(int x = 0; x < width; x++) {
+      for (int y = 0; y < width; y++) {
+         for (int x = 0; x < width; x++) {
             max = Math.max(max, this.physarum.trail[y][x]);
          }
       }
 
       loadPixels();
-      for(int y = 0; y < width; y++) {
-         for(int x = 0; x < width; x++) {
-            int idx = y*width + x;
+      for (int y = 0; y < width; y++) {
+         for (int x = 0; x < width; x++) {
+            int idx = y * width + x;
             float scaledValue = map((float) this.physarum.trail[y][x], (float) min, (float) max, 0, 255);
             pixels[idx] = color(scaledValue);
          }
       }
       updatePixels();
 
-      if(frameCount % 30 == 0) {
-         println("frameRate=" + frameRate);
+      if (frameCount % 30 == 0) {
+         println("Frame Rate:" + frameRate + ", Frame Count: " + frameCount);
       }
 
-//      drawAgents();
-   }
-
-   private void drawAgents() {
-      for(PhysarumAgent agent : this.physarum.agents) {
-         fill(255, 0, 0);
-         int x = floor(agent.pos.x);
-         int y = floor(agent.pos.y);
-//         PVector heading = PVector.fromAngle(radians(agent.headingDeg));
-//         heading.setMag(10);
-
-         pushMatrix();
-         translate(x, y);
-
-         noStroke();
-         ellipse(0, 0, 10, 10);
-
-//         stroke(0, 255, 0);
-//         line(0, 0, heading.x, heading.y);
-
-         popMatrix();
-      }
+//      saveFrame(config.saveDir().getAbsolutePath() + "/frame-#####.png");
    }
 
    public static void main(String[] args) {
