@@ -1,10 +1,13 @@
 package turingpatterns;
 
-class Complex {
-   float re;
-   float im;
+import java.util.Objects;
 
-   Complex(float re, float im) {
+public class Complex {
+
+   public float re;
+   public float im;
+
+   public Complex(float re, float im) {
       this.re = re;
       this.im = im;
    }
@@ -47,6 +50,21 @@ class Complex {
       } else {
          return "" + f;
       }
+   }
+
+   @Override
+   public boolean equals(Object o) {
+      if (this == o) return true;
+      if (o == null || getClass() != o.getClass()) return false;
+      Complex complex = (Complex) o;
+      boolean reEq = Math.abs(complex.re - re) < 0.001;
+      boolean imEq = Math.abs(complex.im - im) < 0.001;
+      return reEq && imEq;
+   }
+
+   @Override
+   public int hashCode() {
+      return Objects.hash(re, im);
    }
 
    public String toString() {

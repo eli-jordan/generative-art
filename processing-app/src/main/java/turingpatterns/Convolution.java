@@ -1,5 +1,7 @@
 package turingpatterns;
 
+import org.jtransforms.fft.RealFFTUtils_2D;
+
 public class Convolution {
    /**
     * Creates a convolution kernel with weights representing an average in a circular region.
@@ -32,6 +34,32 @@ public class Convolution {
 
             Complex c = new Complex(1.0f / area, 0);
             kernel[iy][ix] = c;
+         }
+      }
+
+      return kernel;
+   }
+
+   public static double[][] createRealCircularKernel(int radius, int w, int h) {
+      // Center the kernel at (0,0)
+      int cx = 0;
+      int cy = 0;
+      int r = radius;
+
+      double[][] kernel = new double[h][w];
+
+      double area = Math.PI * r * r;
+      for (int x = -r; x <= r; x++) {
+         int yBound = (int) Math.floor(Math.sqrt(r * r - x * x));
+         for (int y = -yBound; y <= yBound; y++) {
+
+            // We wrap indices to avoid edge effects.
+            int ix = wrapIndex(x + cx, w);
+            int iy = wrapIndex(y + cy, h);
+
+            double value = 1.0 / area;
+
+            kernel[iy][ix] = value;
          }
       }
 

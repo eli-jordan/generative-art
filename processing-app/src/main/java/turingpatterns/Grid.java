@@ -1,5 +1,6 @@
 package turingpatterns;
 
+import org.jtransforms.fft.DoubleFFT_2D;
 import processing.core.PApplet;
 
 import java.util.ArrayList;
@@ -69,16 +70,20 @@ class Grid {
    private final List<Scale> scales;
 
    final float[][] grid;
-   private Complex[][] gridFFT;
+   private double[][] gridFFT;
 
    final int[][] colors;
+
+   int w, h;
 
    private Grid(Builder builder) {
       this.applet = builder.applet;
       this.deltas = builder.deltas;
       this.scales = builder.scales;
-      int w = builder.applet.width;
-      int h = builder.applet.height;
+      w = builder.applet.width;
+      h = builder.applet.height;
+
+      this.gridFFT = new double[h][w*2];
 
 
       this.grid = new float[h][w];
@@ -112,8 +117,21 @@ class Grid {
       normaliseGridValues();
    }
 
+   private void updateGridFFT() {
+//      this.gridFFT = FFT.fft2d(FFT.wrapReals(grid));
+      for(int y = 0; y < h; y++) {
+         for(int x = 0; x < w; x++) {
+            this.gridFFT[y][2*x] = this.grid[y][x];
+            this.gridFFT[y][2*x + 1] = 0;
+         }
+      }
+
+      DoubleFFT_2D fft = new DoubleFFT_2D(h, w);
+      fft.complexForward(this.gridFFT);
+   }
+
    private void updateScales() {
-      this.gridFFT = FFT.fft2d(FFT.wrapReals(grid));
+      updateGridFFT();
 
       final CountDownLatch latch = new CountDownLatch(scales.size());
       for (final Scale scale : scales) {
@@ -153,7 +171,7 @@ class Grid {
       }
    }
 
-   Complex[][] getGridFFT() {
+   double[][] getGridFFT() {
       return this.gridFFT;
    }
 

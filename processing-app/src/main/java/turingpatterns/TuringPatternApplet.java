@@ -28,8 +28,12 @@ public abstract class TuringPatternApplet extends PApplet {
    /* Persistence helper used to load and store the RunConfig */
    private ConfigPersistence persistence;
 
+   private long startTs;
+
    @Override
    public final void settings() {
+      this.startTs = System.currentTimeMillis();
+
       // Save the configuration
       this.persistence = new ConfigPersistence(this.getClass().getSimpleName());
       this.persistence.save(this.runConfig);
@@ -78,7 +82,8 @@ public abstract class TuringPatternApplet extends PApplet {
       this.renderer.draw(this);
 
       if (frameCount % 10 == 0) {
-         println("Frame Rate: " + frameRate + ", Frame Count: " + frameCount);
+         long runTime = System.currentTimeMillis() - this.startTs;
+         println("Frame Rate: " + frameRate + ", Frame Count: " + frameCount + ", Running Time: " + runTime + " ms");
       }
 
       saveFrame(this.persistence.saveDir().getAbsolutePath() + "/frame-#####.png");
