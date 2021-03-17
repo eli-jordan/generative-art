@@ -18,7 +18,6 @@ uniform bool horizontal;
 uniform bool forward;
 uniform float normalization;
 
-//layout(origin_upper_left) in vec4 gl_FragCoord;
 out vec4 glFragColor;
 
 void main() {

@@ -57,8 +57,8 @@ public class Complex {
       if (this == o) return true;
       if (o == null || getClass() != o.getClass()) return false;
       Complex complex = (Complex) o;
-      boolean reEq = Math.abs(complex.re - re) < 0.001;
-      boolean imEq = Math.abs(complex.im - im) < 0.001;
+      boolean reEq = Math.abs(complex.re - re) < 1;
+      boolean imEq = Math.abs(complex.im - im) < 1;
       return reEq && imEq;
    }
 
