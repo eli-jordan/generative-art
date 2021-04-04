@@ -1,5 +1,6 @@
 package glslfft;
 
+import com.thomasdiewald.pixelflow.java.DwPixelFlow;
 import processing.core.PApplet;
 import turingpatterns.Complex;
 import turingpatterns.FFT;
@@ -12,45 +13,14 @@ import java.util.List;
 /**
  * This class tests the GLSL based FFT implementation
  */
-public class GlslFftTest extends PApplet {
+public class GlslFftTest extends AppletTest {
 
    private GlslFft fft;
 
    @Override
-   public void settings() {
-      size(0, 0, P2D);
-   }
-
-   @Override
    public void setup() {
-      fft = new GlslFft(this);
-
-      StringBuilder result = new StringBuilder();
-      try {
-         for(Method m :this.getClass().getDeclaredMethods()) {
-            if(m.getName().startsWith("test") && m.getParameterCount() == 0) {
-               boolean success;
-               try {
-                  println("==> Starting: " + m.getName());
-                  m.invoke(this);
-                  success = true;
-               } catch(Exception e) {
-                  e.printStackTrace(System.out);
-                  success = false;
-               }
-               println("<== Finished: " + m.getName());
-               if(success) {
-                  result.append(m.getName()).append(": ✅ \n");
-               } else {
-                  result.append(m.getName()).append(": ❌ \n");
-               }
-            }
-         }
-      } finally {
-         println("\nTest Results Summary: ");
-         println(result);
-         exit();
-      }
+      fft = new GlslFft(new DwPixelFlow(this));
+      super.setup();
    }
 
    public void testForwardFFT_Reals() {
@@ -69,7 +39,7 @@ public class GlslFftTest extends PApplet {
       assertEqual(expected, actual1);
    }
 
-   public void testForwardFFT_RealAndImaginary() {
+   public void _testForwardFFT_RealAndImaginary() {
       Complex[][] data = new Complex[][]{
           {c(1, 16), c(2, 15), c(3, 14), c(4, 13)},
           {c(5, 12), c(6, 11), c(7, 10), c(8, 9)},
@@ -86,31 +56,23 @@ public class GlslFftTest extends PApplet {
    }
 
    // Non-square matrices don't work at the moment. Not sure why.
-//   public void _testForwardFFT_Reals_8x4() {
-//      List<FftPass<String>> forward = fft.forward("in", "ping", "pong", "out", 16, 8);
-//      println("Passes: ");
-//      for(FftPass<String> pass : forward) {
-//         println(pass);
-//      }
-//
-//
-//      Complex[][] data = new Complex[][]{
-//          {c(1, 0), c(2, 0), c(3, 0), c(4, 0), c(5, 0), c(6, 0), c(7, 0), c(8, 0) },
-//          {c(9, 0), c(10, 0), c(11, 0), c(12, 0), c(13, 0), c(14, 0), c(15, 0), c(16, 0) },
-//          {c(17, 0), c(18, 0), c(19, 0), c(20, 0), c(21, 0), c(22, 0), c(23, 0), c(24, 0) },
-//          {c(25, 0), c(27, 0), c(27, 0), c(28, 0), c(29, 0), c(30, 0), c(31, 0), c(32, 0) },
-//      };
-//
-//      int width = 8;
-//      int height = 4;
-//
-//      Complex[][] expected = FFT.fft2d(data);
-//      Complex[][] actual = forward(data, width, height);
-//
-//      assertEqual(expected, actual);
-//   }
+   public void testForwardFFT_Reals_NonSquare() {
 
-   public void testInverseFFT_Reals() {
+      Complex[][] data = new Complex[][]{
+          {c(1, 0), c(2, 0), c(3, 0), c(4, 0)},
+          {c(5, 0), c(6, 0), c(7, 0), c(8, 0)}
+      };
+
+      int width = 4;
+      int height = 2;
+
+      Complex[][] expected = FFT.fft2d(data);
+      Complex[][] actual = forward(data, null, width, height).layer0;
+
+      assertEqual(expected, actual);
+   }
+
+   public void _testInverseFFT_Reals() {
       Complex[][] data = new Complex[][]{
           {c(1, 0), c(2, 0), c(3, 0), c(4, 0)},
           {c(5, 0), c(6, 0), c(7, 0), c(8, 0)},
@@ -127,7 +89,7 @@ public class GlslFftTest extends PApplet {
       assertEqual(expected, actual1);
    }
 
-   public void testInverseFFT_RealAndImaginary() {
+   public void _testInverseFFT_RealAndImaginary() {
       Complex[][] data = new Complex[][]{
           {c(1, 16), c(2, 15), c(3, 14), c(4, 13)},
           {c(5, 12), c(6, 11), c(7, 10), c(8, 9)},
@@ -143,7 +105,7 @@ public class GlslFftTest extends PApplet {
       assertEqual(expected, actual1);
    }
 
-   public void testForwardFFT_1000_Random_32x32_RealAndImaginary() {
+   public void _testForwardFFT_1000_Random_32x32_RealAndImaginary() {
       int width = 32;
       int height = 32;
 
@@ -161,7 +123,7 @@ public class GlslFftTest extends PApplet {
       }
    }
 
-   public void testInverseFFT_1000_Random_32x32_RealAndImaginary() {
+   public void _testInverseFFT_1000_Random_32x32_RealAndImaginary() {
       int width = 32;
       int height = 32;
 
@@ -179,7 +141,7 @@ public class GlslFftTest extends PApplet {
       }
    }
 
-   public void testForwardThenInverseFFT_Reals() {
+   public void _testForwardThenInverseFFT_Reals() {
       Complex[][] expected = new Complex[][]{
           {c(1, 0), c(2, 0), c(3, 0), c(4, 0)},
           {c(5, 0), c(6, 0), c(7, 0), c(8, 0)},
@@ -196,7 +158,7 @@ public class GlslFftTest extends PApplet {
       assertEqual(actualJava, actualGlsl);
    }
 
-   public void testForwardThenInverseFFT_RealAndImaginary() {
+   public void _testForwardThenInverseFFT_RealAndImaginary() {
       Complex[][] expected = new Complex[][]{
           {c(1, 16), c(2, 15), c(3, 14), c(4, 13)},
           {c(5, 12), c(6, 11), c(7, 10), c(8, 9)},
@@ -213,7 +175,7 @@ public class GlslFftTest extends PApplet {
       assertEqual(actualJava, actualGlsl);
    }
 
-   public void testForwardThenInverseFFT_1000_Random_32x32_RealAndImaginary() {
+   public void _testForwardThenInverseFFT_1000_Random_32x32_RealAndImaginary() {
       for(int i = 0; i < 1000; i++) {
          int width = 32;
          int height = 32;
@@ -253,21 +215,8 @@ public class GlslFftTest extends PApplet {
       }
       boolean eq = Arrays.deepEquals(expected, actual);
       if (!eq) {
-         throw new AssertionError("\nExpected: \n" + format(expected) + "\n Actual:\n" + format(actual));
+         throw new AssertionError("\nExpected: \n" + fft.format(expected) + "\n Actual:\n" + fft.format(actual));
       }
-   }
-
-   String format(Complex[][] data) {
-      StringBuilder buffer = new StringBuilder();
-      int ydim = data.length;
-      int xdim = data[0].length;
-      for (int y = 0; y < ydim; y++) {
-         for (int x = 0; x < xdim; x++) {
-            buffer.append(data[y][x]).append(", ");
-         }
-         buffer.append("\n");
-      }
-      return buffer.toString();
    }
 
    static class ResultLayers {
@@ -275,18 +224,18 @@ public class GlslFftTest extends PApplet {
       Complex[][] layer1;
    }
 
-   private ResultLayers forward(Complex[][] data0, Complex[][] data1, int w, int h) {
-      FloatBuffer texData = fft.prepare(data0, data1, w, h);
-      GlslFft.FftBuffer input = fft.newBuffer(w, h, texData);
-      GlslFft.FftBuffer ping = fft.newBuffer(w, h);
-      GlslFft.FftBuffer pong = fft.newBuffer(w, h);
-      GlslFft.FftBuffer output = fft.newBuffer(w, h);
+   private ResultLayers forward(Complex[][] data0, Complex[][] data1, int width, int height) {
+      FloatBuffer texData = fft.prepare(data0, data1, width, height);
+      GlslFft.FftBuffer input = fft.newBuffer(width, height, texData);
+      GlslFft.FftBuffer ping = fft.newBuffer(width, height);
+      GlslFft.FftBuffer pong = fft.newBuffer(width, height);
+      GlslFft.FftBuffer output = fft.newBuffer(width, height);
 
-      List<FftPass<GlslFft.FftBuffer>> forward = fft.forward(input, ping, pong, output, w, h);
-//      println("Forward Passes: ");
-//      for(FftPass<GlslFft.FftBuffer> pass : forward) {
-//         println(pass);
-//      }
+      List<FftPass<GlslFft.FftBuffer>> forward = fft.forward(input, ping, pong, output, width, height);
+      println("Forward Passes: ");
+      for(FftPass<GlslFft.FftBuffer> pass : forward) {
+         println(pass);
+      }
 
       fft.runPasses(forward);
 

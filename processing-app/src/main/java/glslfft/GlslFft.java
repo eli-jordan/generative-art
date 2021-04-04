@@ -4,20 +4,17 @@ import com.jogamp.opengl.GL2;
 import com.thomasdiewald.pixelflow.java.DwPixelFlow;
 import com.thomasdiewald.pixelflow.java.dwgl.DwGLSLProgram;
 import com.thomasdiewald.pixelflow.java.dwgl.DwGLTexture;
-import processing.core.PApplet;
 import turingpatterns.Complex;
 
 import java.nio.FloatBuffer;
 import java.util.ArrayList;
 import java.util.List;
-
-import static processing.core.PApplet.print;
-import static processing.core.PApplet.println;
+import static processing.core.PApplet.*;
 
 /**
  * This class provides a simplified interface to run an FFT on the GPU
  * using OpenGL and a GLSL fragment shader.
- *
+ * <p>
  * This is a port of the glsl-fft javascript library that can be found here https://github.com/rreusser/glsl-fft
  */
 public class GlslFft {
@@ -25,8 +22,8 @@ public class GlslFft {
    private final DwPixelFlow context;
    private final DwGLSLProgram fft;
 
-   public GlslFft(PApplet applet) {
-      this.context = new DwPixelFlow(applet);
+   public GlslFft(DwPixelFlow context) {
+      this.context = context;
       this.fft = this.context.createShader("glslfft/fft.frag");
    }
 
@@ -107,22 +104,16 @@ public class GlslFft {
          } else {
             pass.output = pong;
          }
-
-         if (i == 0) {
-            if (pass.forward) {
-               pass.normalization = 1;
-            } else {
-               pass.normalization = 1.0f / width / height;
-            }
-         } else {
-            pass.normalization = 1;
+         pass.normalization = 1.0f;
+         if (i == 0 && !pass.forward) {
+            pass.normalization = 1.0f / width / height;
          }
 
          pass.subtransformSize = (float) Math.pow(2, (pass.horizontal ? i : (i - xIterations)) + 1);
 
          passes.add(pass);
 
-         // Swap the image buffers
+         // Swap the buffers
          B tmp = ping;
          ping = pong;
          pong = tmp;
@@ -136,7 +127,7 @@ public class GlslFft {
     */
    public void runPasses(List<FftPass<FftBuffer>> passes) {
       int count = 0;
-      boolean debug = false;
+      boolean debug = true;
       for (FftPass<FftBuffer> pass : passes) {
          this.context.begin();
          this.context.beginDraw(pass.output.buf);
@@ -158,10 +149,10 @@ public class GlslFft {
 
          if(debug) {
             println("------------- Pass " + count + ": Inputs -------------");
-            printComplex(pass.input);
+            println(format(loadLayer0(pass.input)));
 
             println("------------- Pass " + count + ": Outputs -------------");
-            printComplex(pass.output);
+            println(format(loadLayer0(pass.output)));
             println();
          }
          count++;
@@ -173,9 +164,9 @@ public class GlslFft {
     * We can pack two complex number matrices into the four channels of one texture.
     */
    public FloatBuffer prepare(Complex[][] data0, Complex[][] data1, int width, int height) {
-      if (width != height) {
-         throw new IllegalArgumentException("For some reason the glsl based FFT doesn't work on non-square data and I haven't debugged it yet");
-      }
+//      if (width != height) {
+//         throw new IllegalArgumentException("For some reason the glsl based FFT doesn't work on non-square data and I haven't debugged it yet");
+//      }
       float[] fdata = new float[width * height * 4];
       for (int y = 0; y < height; y++) {
          for (int x = 0; x < width; x++) {
@@ -216,13 +207,26 @@ public class GlslFft {
       float[] data = fft.buf.getFloatTextureData(new float[width * height * 4]);
       for (int y = 0; y < height; y++) {
          for (int x = 0; x < width; x++) {
-            int idx = 4 * (y * fft.buf.w + x);
+            int idx = 4 * (y * width + x);
             float re = data[idx + offset];
             float im = data[idx + offset + 1];
             result[y][x] = new Complex(re, im);
          }
       }
       return result;
+   }
+
+   public String format(Complex[][] data) {
+      StringBuilder buffer = new StringBuilder();
+      int ydim = data.length;
+      int xdim = data[0].length;
+      for (int y = 0; y < ydim; y++) {
+         for (int x = 0; x < xdim; x++) {
+            buffer.append(data[y][x]).append(", ");
+         }
+         buffer.append("\n");
+      }
+      return buffer.toString();
    }
 
    /**
@@ -240,24 +244,10 @@ public class GlslFft {
     * {@link #prepare(Complex[][], Complex[][], int, int)}
     */
    public FftBuffer newBuffer(int width, int height, FloatBuffer data) {
-      if (width != height) {
-         throw new IllegalArgumentException("For some reason the glsl based FFT doesn't work on non-square data and I haven't debugged it yet");
-      }
+//      if (width != height) {
+//         throw new IllegalArgumentException("For some reason the glsl based FFT doesn't work on non-square data and I haven't debugged it yet");
+//      }
       return new FftBuffer(this.context, width, height, data);
-   }
-
-   private void printComplex(GlslFft.FftBuffer fft) {
-      float[] data = fft.buf.getFloatTextureData(new float[4 * 4 * 4]);
-      for (int y = 0; y < 4; y++) {
-         for (int x = 0; x < 4; x++) {
-            int idx = 4 * (y * fft.buf.w + x);
-            float real = data[idx];
-            float img = data[idx + 1];
-
-            print(real + "+" + img + "j, ");
-         }
-         println();
-      }
    }
 
    public static class FftBuffer {
@@ -268,7 +258,8 @@ public class GlslFft {
          this.buf.resize(
              context,
              GL2.GL_RGBA32F,
-             width, height,
+             width,
+             height,
              GL2.GL_RGBA,
              GL2.GL_FLOAT,
              GL2.GL_NEAREST,
