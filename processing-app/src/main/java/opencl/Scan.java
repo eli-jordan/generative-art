@@ -17,7 +17,7 @@ public class Scan {
    private static final String scan_pow2_wrapper = "scan_pow2_wrapper";
 
    private final CLContext context;
-   private final CLCommandQueue queue;
+   final CLCommandQueue queue;
    private final int workgroupSize;
    private final int m;
 

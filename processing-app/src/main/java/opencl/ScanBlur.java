@@ -7,25 +7,25 @@ import java.io.IOException;
 import java.nio.FloatBuffer;
 import java.util.Arrays;
 import java.util.Map;
-import java.util.Random;
 
 public class ScanBlur {
 
    private static final String scan_blur = "scan_blur";
 
    private final CLContext context;
-   private final CLCommandQueue queue;
+   final CLCommandQueue queue;
    private final Map<String, CLKernel> kernels;
 
-   private Scan scan;
+   private final Scan scan;
 
    ScanBlur(CLContext context) {
       this.context = context;
       CLDevice device = getDevice(context);
+      System.out.println("Device: " + device);
       this.queue = device.createCommandQueue();
 
       this.kernels = loadKernels(device);
-      this.scan = new Scan(context, device, queue, 256);
+      this.scan = new Scan(context, device, queue, 32);
    }
 
    private CLDevice getDevice(CLContext context) {
@@ -36,6 +36,8 @@ public class ScanBlur {
          }
       }
       return d;
+
+//      return context.getMaxFlopsDevice(CLDevice.Type.GPU);
    }
 
    private Map<String, CLKernel> loadKernels(CLDevice device) {
@@ -56,17 +58,12 @@ public class ScanBlur {
          // using the sub-buffers
          scanRows(in, scanData, width, height);
 
-         // Ensure the row scans have completed before using the result to perform a blur
-//         this.queue.finish();
+         this.queue.putBarrier();
+//         this.scan.queue.finish();
 
-         //debug
-//         this.queue.putReadBuffer(scanData, false);
-//         System.out.println("Scan Result");
-//         print(scanData.getBuffer(), width, height);
-//         System.out.println("---");
-
-
+//         long start = System.currentTimeMillis();
          CLKernel kernel = this.kernels.get(scan_blur);
+         kernel.rewind();
          kernel
              .putArg(scanData)
              .putArg(out)
@@ -78,12 +75,14 @@ public class ScanBlur {
              kernel,
              0, 0,
              width, height,
-             0, 0
+             16, 16
          );
 
          // TODO: Remove this read
-         this.queue.putReadBuffer(out, false);
+//         this.queue.putReadBuffer(out, false);
          this.queue.finish();
+//         long end = System.currentTimeMillis();
+//         System.out.println("kernel(scan_blur): " + (end - start) + " millis");
       } finally {
          scanData.release();
       }
@@ -103,11 +102,8 @@ public class ScanBlur {
 
          // For some reason, if I don't put a read here the writes into
          // the sub-buffer are not visible to the parent buffer.
-         this.queue.putReadBuffer(out, false);
+//         this.queue.putReadBuffer(out, false);
       }
-//      this.queue.finish();
-//      System.out.println("Scan Result");
-//      print(out.getBuffer(), width, height);
    }
 
    public static void main(String[] args) {
