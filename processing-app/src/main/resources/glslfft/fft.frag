@@ -1,4 +1,4 @@
-#version 410
+#version 150
 
 // This shader is essentially a copy of this project https://github.com/rreusser/glsl-fft
 // with some minor adaptions to allow it to run in the processing environment.

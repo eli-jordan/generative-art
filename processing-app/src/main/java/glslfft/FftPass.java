@@ -10,7 +10,9 @@ public class FftPass<B> {
    // The output buffer is being filled by this pass
    B output;
 
+   // Normalisation factor used for the inverse transform
    float normalization;
+
    float subtransformSize;
 
    // 1/width
