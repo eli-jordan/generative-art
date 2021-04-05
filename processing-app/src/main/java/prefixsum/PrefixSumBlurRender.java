@@ -1,7 +1,6 @@
 package prefixsum;
 
 import com.thomasdiewald.pixelflow.java.DwPixelFlow;
-import com.thomasdiewald.pixelflow.java.dwgl.DwGLSLProgram;
 import com.thomasdiewald.pixelflow.java.imageprocessing.filter.Copy;
 import com.thomasdiewald.pixelflow.java.imageprocessing.filter.DwFilter;
 import processing.core.PApplet;
@@ -15,7 +14,7 @@ public class PrefixSumBlurRender extends PApplet {
 
    @Override
    public void settings() {
-      size(512, 512, P2D);
+      size(1024, 1024, P2D);
 
    }
 
@@ -25,33 +24,15 @@ public class PrefixSumBlurRender extends PApplet {
       this.sum = new PrefixSum(context);
       this.blur = new PrefixSumBlur(context);
 
-      DwGLSLProgram shader = this.context.createShader("prefixsum/turing-pattern-step.frag");
-
-      float[][] input1 = createInput(200);
-      Buffer buffer1 = sum.newBuffer(width, height, sum.prepare(input1));
-
-      float[][] input2 = createInput(80);
-      Buffer buffer2 = sum.newBuffer(width, height, sum.prepare(input2));
-
-
-      Buffer out = sum.newBuffer(width, height);
-
-      this.context.begin();
-      this.context.beginDraw(out.buf);
-
-      shader.begin();
-      shader.uniformTexture("test[0]", buffer1.buf);
-      shader.uniformTexture("test[1]", buffer2.buf);
-      shader.uniform2f("resolution", 1.0f / width, 1.0f / height);
-      shader.drawFullScreenQuad();
-
-      shader.end();
-
-      this.context.endDraw();
-      this.context.end();
+      long start = System.currentTimeMillis();
+      float[][] input = createInput(100);
+      float[][] blurResult = this.blur.blur(input, 300);
+      Buffer buffer = sum.newBuffer(width, height, sum.prepare(blurResult));
 
       Copy copy = DwFilter.get(context).copy;
-      copy.apply(out.buf, (PGraphicsOpenGL) g);
+      copy.apply(buffer.buf, (PGraphicsOpenGL) g);
+      long end = System.currentTimeMillis();
+      System.out.println("Time: " + (end - start) + " millis");
    }
 
    public static void main(String[] args) {

@@ -33,15 +33,23 @@ public class PrefixSumBlur {
       Buffer ping = sum.newBuffer(w, h);
       Buffer pong = sum.newBuffer(w, h);
 
+      long start, end;
+
+      start = System.currentTimeMillis();
       List<PrefixSum.Pass<Buffer>> passes = sum.prefixSumPasses(input, ping, pong, w, h);
       Buffer out = sum.runPasses(passes);
+      end = System.currentTimeMillis();
+      System.out.println("scan: " + (end - start) + " millis");
 
 //      System.out.println("PrefixSum");
 //      print(sum.read(out));
 
       Buffer blurOut = out == ping ? pong : ping;
 
+      start = System.currentTimeMillis();
       blur(out, blurOut, w, h, radius);
+      end = System.currentTimeMillis();
+      System.out.println("blur: " + (end - start) + " millis");
       return this.sum.read(blurOut);
    }
 
