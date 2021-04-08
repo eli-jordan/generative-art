@@ -1,5 +1,3 @@
-// Source: https://github.com/nchong/scan/tree/master/harris
-
 /*
  * Inplace upsweep (reduce) on a local array [x] of length [m].
  * NB: [m] must be a power of two.
@@ -63,6 +61,8 @@ inline void scan_pow2(local float *x, int m) {
  * NB: [m] must be a power of two, and
  *     there must be exactly one workgroup of size m/2
  */
+
+ /*
 kernel void scan_pow2_wrapper(global float *data, local float *x, int m) {
   int gid = get_global_id(0);
   int lane0 = (gid*2);
@@ -78,16 +78,22 @@ kernel void scan_pow2_wrapper(global float *data, local float *x, int m) {
   // writeback data
   data[lane0] = x[lane0];
   data[lane1] = x[lane1];
-}
+}*/
 
-kernel void scan_pad_to_pow2(global float *data, local float *x, int n) {
+kernel void scan_pad_to_pow2(
+  read_only image2d_t in, 
+  write_only image2d_t out, 
+  local float *x, 
+  int n,
+  int y
+  ) {
   int gid = get_global_id(0);
   int lane0 = (gid*2);
   int lane1 = (gid*2)+1;
   int m = 2*get_local_size(0);
 
-  x[lane0] = lane0 < n ? data[lane0] : 0;
-  x[lane1] = lane1 < n ? data[lane1] : 0;
+  x[lane0] = lane0 < n ? read_imagef(in, (int2)(lane0, y)).x : 0;
+  x[lane1] = lane1 < n ? read_imagef(in, (int2)(lane1, y)).x : 0;
 
   upsweep_pow2(x, m);
   if (lane1 == (m-1)) {
@@ -95,10 +101,15 @@ kernel void scan_pad_to_pow2(global float *data, local float *x, int n) {
   }
   sweepdown_pow2(x, m);
 
-  if (lane0 < n)
-    data[lane0] = x[lane0];
-  if (lane1 < n)
-    data[lane1] = x[lane1];
+  if (lane0 < n) {
+    write_imagef(out, (int2)(lane0, y), (float4)(x[lane0], 0.0, 0.0, 0.0));
+    //data[lane0] = x[lane0];
+  }
+
+  if (lane1 < n) {
+    write_imagef(out, (int2)(lane1, y), (float4)(x[lane1], 0.0, 0.0, 0.0));
+    //data[lane1] = x[lane1];
+  }
 }
 
 /*
@@ -113,10 +124,12 @@ kernel void scan_pad_to_pow2(global float *data, local float *x, int n) {
  * These partial values can themselves be scanned and fed into [scan_inc_subarrays].
  */
 kernel void scan_subarrays(
-  global float *data, //length [n]
+  read_only image2d_t in, //length [n]
+  write_only image2d_t out, //length [n]
   local  float *x,    //length [m]
   global float *part, //length [m]
-           int n
+           int n,
+           int y
 #if DEBUG
   , __global int *debug   //length [k*m]
 #endif
@@ -137,8 +150,8 @@ kernel void scan_subarrays(
   int k = get_num_groups(0);
 
   // copy into local data padding elements >= n with 0
-  x[local_lane0] = (lane0 < n) ? data[lane0] : 0;
-  x[local_lane1] = (lane1 < n) ? data[lane1] : 0;
+  x[local_lane0] = (lane0 < n) ? read_imagef(in, (int2)(lane0, y)).x : 0;
+  x[local_lane1] = (lane1 < n) ? read_imagef(in, (int2)(lane1, y)).x : 0;
 
   // ON EACH SUBARRAY
   // a reduce on each subarray
@@ -153,10 +166,12 @@ kernel void scan_subarrays(
 
   // copy back to global data
   if (lane0 < n) {
-    data[lane0] = x[local_lane0];
+    write_imagef(out, (int2)(lane0, y), (float4)(x[local_lane0], 0.0, 0.0, 0.0));
+    //data[lane0] = x[local_lane0];
   }
   if (lane1 < n) {
-    data[lane1] = x[local_lane1];
+    write_imagef(out, (int2)(lane1, y), (float4)(x[local_lane1], 0.0, 0.0, 0.0));
+    //data[lane1] = x[local_lane1];
   }
 
 #if DEBUG
@@ -173,10 +188,12 @@ kernel void scan_subarrays(
  * We sum each element by the sum of the preceding subarrays taken from [part].
  */
 kernel void scan_inc_subarrays(
-  global float *data, //length [n]
+  read_only image2d_t in,       //length [n]
+  write_only image2d_t out,      //length [n]
   local  float *x,    //length [m]
   global float *part, //length [m]
-           int n
+           int n,
+           int y      // the y location in the image we are performing the scan on
 #if DEBUG
   , __global int *debug   //length [k*m]
 #endif
@@ -192,18 +209,18 @@ kernel void scan_inc_subarrays(
   int grpid = get_group_id(0);
 
   // copy into local data padding elements >= n with identity
-  x[local_lane0] = (lane0 < n) ? data[lane0] : 0;
-  x[local_lane1] = (lane1 < n) ? data[lane1] : 0;
+  x[local_lane0] = (lane0 < n) ? read_imagef(in, (int2)(lane0, y)).x : 0;
+  x[local_lane1] = (lane1 < n) ? read_imagef(in, (int2)(lane1, y)).x : 0;
 
   x[local_lane0] += part[grpid];
   x[local_lane1] += part[grpid];
 
   // copy back to global data
   if (lane0 < n) {
-    data[lane0] = x[local_lane0];
+    write_imagef(out, (int2)(lane0, y), (float4)(x[local_lane0], 0.0, 0.0, 0.0));
   }
   if (lane1 < n) {
-    data[lane1] = x[local_lane1];
+    write_imagef(out, (int2)(lane0, y), (float4)(x[local_lane1], 0.0, 0.0, 0.0));
   }
 
 #if DEBUG

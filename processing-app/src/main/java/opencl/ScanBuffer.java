@@ -9,12 +9,11 @@ import java.util.Arrays;
 import java.util.Map;
 import java.util.Random;
 
-public class Scan {
+public class ScanBuffer {
 
    private static final String scan_inc_subarrays = "scan_inc_subarrays";
    private static final String scan_subarrays = "scan_subarrays";
    private static final String scan_pad_to_pow2 = "scan_pad_to_pow2";
-   private static final String scan_pow2_wrapper = "scan_pow2_wrapper";
 
    private final CLContext context;
    final CLCommandQueue queue;
@@ -24,7 +23,7 @@ public class Scan {
    private final Map<String, CLKernel> kernels;
 
 
-   public Scan(CLContext context, CLDevice device, CLCommandQueue queue, int workgroupSize) {
+   public ScanBuffer(CLContext context, CLDevice device, CLCommandQueue queue, int workgroupSize) {
       this.context = context;
       this.queue = queue;
       this.workgroupSize = workgroupSize;
@@ -32,15 +31,15 @@ public class Scan {
       this.kernels = loadKernels(context, device);
    }
 
-   public static Scan create(CLContext context, int workgroupSize) {
+   public static ScanBuffer create(CLContext context, int workgroupSize) {
       CLDevice device = context.getMaxFlopsDevice(CLDevice.Type.GPU);
       CLCommandQueue queue = device.createCommandQueue();
-      return new Scan(context, device, queue, workgroupSize);
+      return new ScanBuffer(context, device, queue, workgroupSize);
    }
 
    private static Map<String, CLKernel> loadKernels(CLContext context, CLDevice device) {
       try {
-         InputStream stream = Scan.class.getResourceAsStream("/cl-kernels/scan.cl");
+         InputStream stream = ScanBuffer.class.getResourceAsStream("/cl-kernels/scan.cl");
          CLProgram program = context.createProgram(stream).build(device);
          return program.createCLKernels();
       } catch (IOException e) {
@@ -169,7 +168,7 @@ public class Scan {
    }
 
    public static void main(String[] args) {
-      Scan scan = Scan.create(CLContext.create(), 256);
+      ScanBuffer scan = ScanBuffer.create(CLContext.create(), 256);
       float[] in = randomValues(10000);
           //new float[] { 1, 2, 3, 4, 5, 6, 7, 8};
       float[] outExclusiveRef = new float[in.length];
