@@ -2,6 +2,7 @@ package opencl;
 
 import com.jogamp.common.nio.Buffers;
 import com.jogamp.opencl.*;
+import com.jogamp.opencl.llb.CL;
 
 import java.io.IOException;
 import java.nio.FloatBuffer;
@@ -18,17 +19,15 @@ public class ScanBlur {
    private final Map<String, CLKernel> kernels;
 
    private final ScanBuffer scan;
-   private final PrefixSumSimple sum;
+   private final ScanImage2d sum;
 
-   ScanBlur(CLContext context) {
+   public ScanBlur(CLContext context, CLCommandQueue queue) {
       this.context = context;
-      CLDevice device = getDevice(context);
-      System.out.println("Device: " + device);
-      this.queue = device.createCommandQueue();
+      this.queue = queue;
 
-      this.kernels = loadKernels(device);
-      this.scan = new ScanBuffer(context, device, queue, 256);
-      this.sum = new PrefixSumSimple(context, queue);
+      this.kernels = loadKernels(queue.getDevice());
+      this.scan = new ScanBuffer(context, queue, 256);
+      this.sum = new ScanImage2d(context, queue);
    }
 
    private CLDevice getDevice(CLContext context) {
@@ -70,16 +69,21 @@ public class ScanBlur {
 //      print((FloatBuffer) pong.getBuffer(), in.width, in.height);
 //      System.out.println("---");
 
+      runBlurKernel(scanData, blurOut, radius);
+      return blurOut;
+   }
+
+   public void runBlurKernel(CLImage2d<?> scanData, CLImage2d<?> out, int radius) {
       this.queue.finish();
       long blurStart = System.currentTimeMillis();
       CLKernel kernel = this.kernels.get(scan_blur_image);
       kernel.rewind();
       kernel
           .putArg(scanData)
-          .putArg(blurOut)
+          .putArg(out)
           .putArg(radius)
-          .putArg(in.width)
-          .putArg(in.height);
+          .putArg(out.width)
+          .putArg(out.height);
 
       // TODO: 16x16 seems to work well here, but not when the global size < 16x16
       int localSizeX = 0;
@@ -87,14 +91,13 @@ public class ScanBlur {
       this.queue.put2DRangeKernel(
           kernel,
           0, 0,
-          in.width, in.height,
+          out.width, out.height,
           localSizeX, localSizeY
       );
 
       this.queue.finish();
       long blurEnd = System.currentTimeMillis();
-      System.out.println("kernel(scan_blur:image): " + (blurEnd - blurStart) + " millis");
-      return blurOut;
+//      System.out.println("ScanBlur.runBlurKernel(radius=" + radius + "): " + (blurEnd - blurStart) + " ms");
    }
 
    public void blur(CLBuffer<FloatBuffer> in, CLBuffer<FloatBuffer> out, int width, int height, int radius) {
@@ -228,32 +231,32 @@ public class ScanBlur {
 //      input[10 * width + 9] = 1;
 //      input[10 * width + 11] = 1;
 
-      int width = 4;
-      int height = 4;
-      float[] input = new float[] {
-          1, 1, 1, 1,
-          2, 2, 2, 2,
-          3, 3, 3, 3,
-          4, 4, 4, 4
-      };
-
-      CLContext context = CLContext.create();
-      ScanBlur blur = new ScanBlur(context);
-
-
-
-      CLImageFormat format = new CLImageFormat(CLImageFormat.ChannelOrder.R, CLImageFormat.ChannelType.FLOAT);
-      CLImage2d<FloatBuffer> in = context.createImage2d(Buffers.newDirectFloatBuffer(input), width, height, format);
-      CLImage2d<FloatBuffer> ping = context.createImage2d(Buffers.newDirectFloatBuffer(width*height), width, height, format);
-      CLImage2d<FloatBuffer> pong = context.createImage2d(Buffers.newDirectFloatBuffer(width*height), width, height, format);
-
-      blur.queue.putWriteImage(in, false);
-      CLImage2d<?> result = blur.blur(in, ping, pong, 3);
-
-      blur.queue.putReadImage(result, false);
-      blur.queue.finish();
-
-      print((FloatBuffer) result.getBuffer(), width, height);
+//      int width = 4;
+//      int height = 4;
+//      float[] input = new float[] {
+//          1, 1, 1, 1,
+//          2, 2, 2, 2,
+//          3, 3, 3, 3,
+//          4, 4, 4, 4
+//      };
+//
+//      CLContext context = CLContext.create();
+//      ScanBlur blur = new ScanBlur(context);
+//
+//
+//
+//      CLImageFormat format = new CLImageFormat(CLImageFormat.ChannelOrder.R, CLImageFormat.ChannelType.FLOAT);
+//      CLImage2d<FloatBuffer> in = context.createImage2d(Buffers.newDirectFloatBuffer(input), width, height, format);
+//      CLImage2d<FloatBuffer> ping = context.createImage2d(Buffers.newDirectFloatBuffer(width*height), width, height, format);
+//      CLImage2d<FloatBuffer> pong = context.createImage2d(Buffers.newDirectFloatBuffer(width*height), width, height, format);
+//
+//      blur.queue.putWriteImage(in, false);
+//      CLImage2d<?> result = blur.blur(in, ping, pong, 3);
+//
+//      blur.queue.putReadImage(result, false);
+//      blur.queue.finish();
+//
+//      print((FloatBuffer) result.getBuffer(), width, height);
 
 
 //

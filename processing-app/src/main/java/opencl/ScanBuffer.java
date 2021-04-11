@@ -23,18 +23,18 @@ public class ScanBuffer {
    private final Map<String, CLKernel> kernels;
 
 
-   public ScanBuffer(CLContext context, CLDevice device, CLCommandQueue queue, int workgroupSize) {
+   public ScanBuffer(CLContext context, CLCommandQueue queue, int workgroupSize) {
       this.context = context;
       this.queue = queue;
       this.workgroupSize = workgroupSize;
       this.m = 2 * workgroupSize;
-      this.kernels = loadKernels(context, device);
+      this.kernels = loadKernels(context, queue.getDevice());
    }
 
    public static ScanBuffer create(CLContext context, int workgroupSize) {
       CLDevice device = context.getMaxFlopsDevice(CLDevice.Type.GPU);
       CLCommandQueue queue = device.createCommandQueue();
-      return new ScanBuffer(context, device, queue, workgroupSize);
+      return new ScanBuffer(context, queue, workgroupSize);
    }
 
    private static Map<String, CLKernel> loadKernels(CLContext context, CLDevice device) {

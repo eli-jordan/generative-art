@@ -6,16 +6,15 @@ import com.jogamp.opencl.*;
 import java.io.IOException;
 import java.nio.FloatBuffer;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
 
-public class PrefixSumSimple {
+public class ScanImage2d {
    private final CLContext context;
    private final CLCommandQueue queue;
    private final CLKernel kernel;
 
-   public PrefixSumSimple(CLContext context, CLCommandQueue queue) {
+   public ScanImage2d(CLContext context, CLCommandQueue queue) {
       this.context = context;
       this.queue = queue;
       this.kernel = loadKernel(queue.getDevice());
@@ -33,7 +32,15 @@ public class PrefixSumSimple {
 
    public CLImage2d<?> run(CLImage2d<?> input, CLImage2d<?> pingBuf, CLImage2d<?> pingPong, int width, int height) {
       List<Pass<CLImage2d<?>>> passes = prefixSumPasses(input, pingBuf, pingPong, width, height);
-      return runPasses(passes, width, height);
+      this.queue.finish();
+      long start = System.currentTimeMillis();
+      CLImage2d<?> result = runPasses(passes, width, height);
+
+      this.queue.finish();
+      long end = System.currentTimeMillis();
+//      System.out.println("ScanImage2d.run: Took " + (end-start) + " ms");
+
+      return result;
    }
 
    public <B> List<Pass<B>> prefixSumPasses(B input, B pingBuf, B pingPong, int width, int height) {
@@ -132,7 +139,7 @@ public class PrefixSumSimple {
          input[i] = random.nextFloat();
       }
 
-      PrefixSumSimple sum = new PrefixSumSimple(context, queue);
+      ScanImage2d sum = new ScanImage2d(context, queue);
       CLImageFormat format = new CLImageFormat(CLImageFormat.ChannelOrder.R, CLImageFormat.ChannelType.FLOAT);
       FloatBuffer inputBuffer = prepare(input);
       CLImage2d<?> in = context.createImage2d(inputBuffer, width, height, format);

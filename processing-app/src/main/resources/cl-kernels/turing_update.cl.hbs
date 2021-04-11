@@ -1,0 +1,58 @@
+
+/*
+ * This file is a template that is used to generate the OpenCL kernel that performs
+ * a multi-scale turing pattern update, when given as input the pre-calculated
+ * activator and inhibitor buffers.
+ *
+ * Code generation is used because OpenCL doesn't support passing a variable number
+ * of images as arguments. So, we code-gen the variable number of arguments.
+ */
+
+inline float map(float value,
+    float start1, float stop1,
+    float start2, float stop2) {
+    return start2 + (stop2 - start2) * ((value - start1) / (stop1 - start1));
+}
+
+kernel void turing_update(
+    {{#each indices}}read_only image2d_t activator{{this}},
+    {{/each}}
+    {{#each indices}}read_only image2d_t inhibitor{{this}},
+    {{/each}}
+    {{#each indices}}float small_amount{{this}},
+    {{/each}}
+    read_only image2d_t grid_in,
+    write_only image2d_t grid_out,
+    float max_inc
+) {
+    int2 coord = (int2)(get_global_id(0), get_global_id(1));
+
+    {{#each indices}}float activator{{this}}_value = read_imagef(activator{{this}}, coord).x;
+    {{/each}}
+
+    {{#each indices}}float inhibitor{{this}}_value = read_imagef(inhibitor{{this}}, coord).x;
+    {{/each}}
+
+    {{#each indices}}float variation{{this}} = fabs(activator{{this}}_value - inhibitor{{this}}_value);
+    {{/each}}
+
+    {{#each indices}}float multiplier{{this}} = activator{{this}}_value > inhibitor{{this}}_value ? 1.0 : -1.0;
+    {{/each}}
+
+    float min_variation = variation0;
+    float small_amount = small_amount0;
+    float multiplier = multiplier0;
+
+    {{#each indices}}
+        if(variation{{this}} < min_variation) {
+            min_variation = variation{{this}};
+            small_amount = small_amount{{this}};
+            multiplier = multiplier{{this}};
+        }
+    {{/each}}
+
+    float new_value = read_imagef(grid_in, coord).x + small_amount * multiplier;
+    new_value = map(new_value, -1 - max_inc, 1 + max_inc, -1, 1);
+
+    write_imagef(grid_out, coord, (float4)(new_value, 0.0, 0.0, 0.0));
+}
