@@ -18,6 +18,7 @@ public class ScanBlur {
    private final Map<String, CLKernel> kernels;
 
    private final ScanBuffer scan;
+   private final PrefixSumSimple sum;
 
    ScanBlur(CLContext context) {
       this.context = context;
@@ -27,6 +28,7 @@ public class ScanBlur {
 
       this.kernels = loadKernels(device);
       this.scan = new ScanBuffer(context, device, queue, 256);
+      this.sum = new PrefixSumSimple(context, queue);
    }
 
    private CLDevice getDevice(CLContext context) {
@@ -50,6 +52,49 @@ public class ScanBlur {
       } catch (IOException e) {
          throw new RuntimeException(e);
       }
+   }
+
+   public CLImage2d<?> blur(CLImage2d<?> in, CLImage2d<?> ping, CLImage2d<?> pong, int radius) {
+
+      this.queue.finish();
+      long startScan = System.currentTimeMillis();
+      CLImage2d<?> scanData = this.sum.run(in, ping, pong, in.width, in.height);
+      CLImage2d<?> blurOut = scanData.ID == ping.ID ? pong : ping;
+
+      this.queue.finish();
+      long endScan = System.currentTimeMillis();
+      System.out.println("Scan Took: " + (endScan - startScan) + " ms");
+
+//      this.queue.putReadImage(pong, true);
+//      System.out.println("Scan Result");
+//      print((FloatBuffer) pong.getBuffer(), in.width, in.height);
+//      System.out.println("---");
+
+      this.queue.finish();
+      long blurStart = System.currentTimeMillis();
+      CLKernel kernel = this.kernels.get(scan_blur_image);
+      kernel.rewind();
+      kernel
+          .putArg(scanData)
+          .putArg(blurOut)
+          .putArg(radius)
+          .putArg(in.width)
+          .putArg(in.height);
+
+      // TODO: 16x16 seems to work well here, but not when the global size < 16x16
+      int localSizeX = 0;
+      int localSizeY = 0;
+      this.queue.put2DRangeKernel(
+          kernel,
+          0, 0,
+          in.width, in.height,
+          localSizeX, localSizeY
+      );
+
+      this.queue.finish();
+      long blurEnd = System.currentTimeMillis();
+      System.out.println("kernel(scan_blur:image): " + (blurEnd - blurStart) + " millis");
+      return blurOut;
    }
 
    public void blur(CLBuffer<FloatBuffer> in, CLBuffer<FloatBuffer> out, int width, int height, int radius) {
@@ -193,40 +238,45 @@ public class ScanBlur {
       };
 
       CLContext context = CLContext.create();
-
-//      CLDevice d = context.getMaxFlopsDevice(CLDevice.Type.GPU);
-//      for(CLDevice device : context.getDevices()) {
-//         final int maxComputeUnits     = device.getMaxComputeUnits();
-//         final int maxClockFrequency   = device.getMaxClockFrequency();
-//         final int flops = maxComputeUnits*maxClockFrequency;
-//         System.out.println("Device: " + device);
-//         System.out.println("     Max CUs: " + maxComputeUnits);
-//         System.out.println("    Max Freq: " + maxClockFrequency);
-//         System.out.println("       FLOPs: " + flops);
-//         System.out.println("--------");
-//      }
-
-
-      CLBuffer<FloatBuffer> inBuf = context.createBuffer(Buffers.newDirectFloatBuffer(input));
-      CLBuffer<FloatBuffer> outBuf = context.createFloatBuffer(width * height);
       ScanBlur blur = new ScanBlur(context);
-      blur.queue.putWriteBuffer(inBuf, false);
-//      blur.queue.putWriteBuffer(outBuf, false);
-      blur.blur(inBuf, outBuf, width, height, 3);
-//      blur.scanRows(inBuf, outBuf, width, height);
-      blur.queue.putReadBuffer(outBuf, false);
+
+
+
+      CLImageFormat format = new CLImageFormat(CLImageFormat.ChannelOrder.R, CLImageFormat.ChannelType.FLOAT);
+      CLImage2d<FloatBuffer> in = context.createImage2d(Buffers.newDirectFloatBuffer(input), width, height, format);
+      CLImage2d<FloatBuffer> ping = context.createImage2d(Buffers.newDirectFloatBuffer(width*height), width, height, format);
+      CLImage2d<FloatBuffer> pong = context.createImage2d(Buffers.newDirectFloatBuffer(width*height), width, height, format);
+
+      blur.queue.putWriteImage(in, false);
+      CLImage2d<?> result = blur.blur(in, ping, pong, 3);
+
+      blur.queue.putReadImage(result, false);
       blur.queue.finish();
 
-//      for (int sub = 0; sub < 10; sub++) {
-//         FloatBuffer buf = (FloatBuffer) outBuf.getSubBuffers().get(sub).getBuffer();
-//         float[] res = new float[10];
-//         buf.get(res);
-//         System.out.println("SubBuf(" + sub + "): " + Arrays.toString(res));
-//      }
+      print((FloatBuffer) result.getBuffer(), width, height);
 
-      System.out.println("\nResult");
-      print(outBuf.getBuffer(), width, height);
-      context.release();
+
+//
+//      CLBuffer<FloatBuffer> inBuf = context.createBuffer(Buffers.newDirectFloatBuffer(input));
+//      CLBuffer<FloatBuffer> outBuf = context.createFloatBuffer(width * height);
+//      ScanBlur blur = new ScanBlur(context);
+//      blur.queue.putWriteBuffer(inBuf, false);
+////      blur.queue.putWriteBuffer(outBuf, false);
+//      blur.blur(inBuf, outBuf, width, height, 3);
+////      blur.scanRows(inBuf, outBuf, width, height);
+//      blur.queue.putReadBuffer(outBuf, false);
+//      blur.queue.finish();
+//
+////      for (int sub = 0; sub < 10; sub++) {
+////         FloatBuffer buf = (FloatBuffer) outBuf.getSubBuffers().get(sub).getBuffer();
+////         float[] res = new float[10];
+////         buf.get(res);
+////         System.out.println("SubBuf(" + sub + "): " + Arrays.toString(res));
+////      }
+//
+//      System.out.println("\nResult");
+//      print(outBuf.getBuffer(), width, height);
+//      context.release();
    }
 
    static void print(String pre, FloatBuffer buf) {

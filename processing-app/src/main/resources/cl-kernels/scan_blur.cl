@@ -49,6 +49,59 @@ inline int buf_index(int x, int y, int width) {
 	return y*width + x;
 }
 
+
+kernel void scan_blur_float4(
+    global const float *scan_rows,
+    global       float4 *output,
+                   int radius,
+                   int width,
+                   int height
+) {
+    int x = get_global_id(0);
+    int y = get_global_id(1);
+
+    # if DEBUG
+    printf("kernel(scan_blur): radius=%d, width=%d, height=%d\n", radius, width, height);
+    #endif 
+
+    float4 sum = 0.0;
+
+    for (int iy = -radius; iy <= radius; iy++) {
+        int x_bound = (int) sqrt((float)(radius*radius - iy*iy));
+
+        // x coordinates at the left and right edges of the circle
+        int left_x  = clamp(x * 4 - x_bound, 0, width - 1);
+        int right_x = clamp(x * 4 + x_bound, 0, width - 1);
+
+        int current_y = clamp(y + iy, 0, height - 1);
+
+        //float4 left_value = scan_rows[buf_index(left_x, current_y, width) / 4];
+        //float4 right_value = scan_rows[buf_index(right_x, current_y, width) / 4];
+
+        float4 left_value = vload4(buf_index(left_x, current_y, width), scan_rows);
+        float4 right_value = vload4(buf_index(right_x, current_y, width), scan_rows);
+        
+
+        #if DEBUG
+        printf("    kernel(scan_blur): (%d, %d): xBound=%f, right(%d, %d)=%f, left(%d, %d)=%f\n", 
+            x, y, x_bound, right_x, current_y, right_value, left_x, current_y, left_value);
+        #endif
+        
+
+        sum += (right_value - left_value);
+    }
+
+    float4 result = sum / (PI*radius*radius);
+
+    #if DEBUG
+    printf("kernel(scan_blur): (%d, %d): scan_rows=%f sum=%f result=%f\n---\n", 
+        x, y, scan_rows[buf_index(x, y, width)], sum, result);
+    #endif
+
+    output[buf_index(x*4, y, width)/4] = result;
+    //vstore4(result, buf_index(x*4, y, width), output);
+}
+
 kernel void scan_blur(
 	global const float *scan_rows,
 	global       float *output,
