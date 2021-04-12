@@ -21,7 +21,7 @@ public class CLTuringSketch extends PApplet {
 
    @Override
    public void settings() {
-      size(2048, 1024);
+      size(1024, 1024);
    }
 
    @Override

@@ -5,7 +5,6 @@ import com.jogamp.opencl.*;
 import opencl.ScanImage2d;
 import processing.core.PApplet;
 
-import java.io.IOException;
 import java.nio.FloatBuffer;
 import java.util.List;
 
@@ -79,6 +78,9 @@ public class CLGrid {
       CLImage2d<?> pong = null;
       CLImage2d<?> newGrid = null;
       try {
+         //TODO: We allocate new buffers on each frame, which is both slow
+         // and requires additional memory. We should be able to reuse the same 3 buffers
+         // for each frame.
          ping = newImage();
          pong = newImage();
          newGrid = newImage();

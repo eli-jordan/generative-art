@@ -5,9 +5,7 @@ import com.jogamp.opencl.*;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.FloatBuffer;
-import java.util.Arrays;
 import java.util.Map;
-import java.util.Random;
 
 public class ScanBuffer {
 
@@ -150,73 +148,4 @@ public class ScanBuffer {
       }
    }
 
-   static void exclusive_scan(float[] input, float[] output) {
-      int n = input.length;
-      output[0] = 0;
-      for (int i=1; i<n; i++) {
-         output[i] = output[i-1] + input[i-1];
-      }
-   }
-
-   static void inclusive_scan(float[] input, float[] output) {
-      float sum = input[0];
-      output[0] = input[0];
-      for (int j = 1; j < input.length; j++) {
-         sum += input[j];
-         output[j] = sum;
-      }
-   }
-
-   public static void main(String[] args) {
-      ScanBuffer scan = ScanBuffer.create(CLContext.create(), 256);
-      float[] in = randomValues(10000);
-          //new float[] { 1, 2, 3, 4, 5, 6, 7, 8};
-      float[] outExclusiveRef = new float[in.length];
-      float[] outInclusiveRef = new float[in.length];
-      float[] outCL = new float[in.length];
-
-      scan.scan(in, outCL);
-
-      exclusive_scan(in, outExclusiveRef);
-      inclusive_scan(in, outInclusiveRef);
-
-
-
-
-      if(!approxEqual(outExclusiveRef, outCL, 1.0f)) {
-         System.out.println("❌ Not equal");
-         System.out.println("Ref: " + Arrays.toString(outExclusiveRef));
-         System.out.println(" CL: " + Arrays.toString(outCL));
-      } else {
-         System.out.println("✅ Equal");
-      }
-
-
-//      System.out.println("Result Reference (exclusive): " + Arrays.toString(outExclusiveRef));
-//      System.out.println("   Result OpenCL (exclusive): " + Arrays.toString(outCL));
-//      System.out.println("Result Reference (inclusive): " + Arrays.toString(outInclusiveRef));
-   }
-
-   private static boolean approxEqual(float[] expected, float[] actual, float tolerance) {
-      boolean equal = true;
-      float maxDiff = 0.0f;
-      for(int i = 0; i < expected.length; i++) {
-         float diff = Math.abs(expected[i] - actual[i]);
-         if(diff > tolerance) {
-            equal = false;
-            maxDiff = Math.max(maxDiff, diff);
-         }
-      }
-      System.out.println("Max Diff: " + maxDiff);
-      return equal;
-   }
-
-   private static float[] randomValues(int count) {
-      Random random = new Random();
-      float[] data = new float[count];
-      for(int i = 0; i < count; i++) {
-         data[i] = random.nextFloat() * 100;
-      }
-      return data;
-   }
 }

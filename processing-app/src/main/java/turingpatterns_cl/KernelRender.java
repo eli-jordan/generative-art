@@ -13,6 +13,9 @@ import java.util.*;
 
 public class KernelRender {
 
+   /**
+    * Uses a handlebars template to render the turing_update kernel for a given number of scales.
+    */
    public static String render(int scaleCount) {
       try {
          List<Integer> indices = new ArrayList<>();
@@ -23,10 +26,10 @@ public class KernelRender {
          String templateSource = readStream(KernelRender.class.getResourceAsStream("/cl-kernels/turing_update.cl.hbs"));
 
          Handlebars hbs = new Handlebars();
-         Template template1 = hbs.compileInline(templateSource);
+         Template template = hbs.compileInline(templateSource);
          Map<String, List<Integer>> context = new HashMap<>();
          context.put("indices", indices);
-         return template1.apply(context);
+         return template.apply(context);
       } catch(Exception e) {
          throw new RuntimeException(e);
       }

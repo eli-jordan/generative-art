@@ -27,15 +27,19 @@ kernel void turing_update(
 ) {
     int2 coord = (int2)(get_global_id(0), get_global_id(1));
 
+    // Lookup the activator value for each input
     {{#each indices}}float activator{{this}}_value = read_imagef(activator{{this}}, coord).x;
     {{/each}}
 
+    // Lookup the inhibitor value for each input
     {{#each indices}}float inhibitor{{this}}_value = read_imagef(inhibitor{{this}}, coord).x;
     {{/each}}
 
+    // Calculate the variation value for each activator/inhibitor combination
     {{#each indices}}float variation{{this}} = fabs(activator{{this}}_value - inhibitor{{this}}_value);
     {{/each}}
 
+    // Calculate whether the increment will be positive or negative for a given input
     {{#each indices}}float multiplier{{this}} = activator{{this}}_value > inhibitor{{this}}_value ? 1.0 : -1.0;
     {{/each}}
 
@@ -43,6 +47,7 @@ kernel void turing_update(
     float small_amount = small_amount0;
     float multiplier = multiplier0;
 
+    // Calculate the attributes for the "winning" scale i.e. the one with the smallest variation.
     {{#each indices}}
         if(variation{{this}} < min_variation) {
             min_variation = variation{{this}};
@@ -52,6 +57,14 @@ kernel void turing_update(
     {{/each}}
 
     float new_value = read_imagef(grid_in, coord).x + small_amount * multiplier;
+
+    // We want to normalise the values into the range [-1,1]. To do this 100% correctly
+    // we would need to perform another reduction on the grid data to find the minimum and maximum
+    // then scale the data using those.
+    //
+    // To avoid the min/max computation, we observe that at each step the maximum delta
+    // of any given value will be the maximum `small_amount` variable.
+    // So we use normalise to the range [-1 - max(small_amounts), 1 + max(small_amounts)]
     new_value = map(new_value, -1 - max_inc, 1 + max_inc, -1, 1);
 
     write_imagef(grid_out, coord, (float4)(new_value, 0.0, 0.0, 0.0));

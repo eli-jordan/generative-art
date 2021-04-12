@@ -1,5 +1,12 @@
 
-
+/*
+ * This kernel is used to compute the prefix-sum of each row in the input image.
+ * 
+ * It implements one step in the Stone-Kogge adder algorithm, and relies on the driver
+ * program to execute the kernel log2(in.width) times with the appropriate stride.
+ * 
+ * See opencl/ScanImage2d.java for the driver logic.
+ */
 kernel void scan_image2d(
   read_only image2d_t in,
   write_only image2d_t out,

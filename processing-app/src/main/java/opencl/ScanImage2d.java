@@ -1,13 +1,10 @@
 package opencl;
 
-import com.jogamp.common.nio.Buffers;
 import com.jogamp.opencl.*;
 
 import java.io.IOException;
-import java.nio.FloatBuffer;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Random;
 
 public class ScanImage2d {
    private final CLContext context;
@@ -116,94 +113,4 @@ public class ScanImage2d {
              '}';
       }
    }
-
-   static FloatBuffer prepare(float[] input) {
-      FloatBuffer buf = Buffers.newDirectFloatBuffer(input.length);
-      buf.put(input);
-      buf.rewind();
-      return buf;
-   }
-
-   public static void main(String[] args) {
-      CLContext context = CLContext.create();
-      CLDevice device = getDevice(context);
-      CLCommandQueue queue = device.createCommandQueue();
-
-      int width = 1024;
-      int height = 1024;
-
-      float[] input = new float[width*height];
-//      Arrays.fill(input, 1);
-      Random random = new Random();
-      for(int i = 0; i < input.length; i++) {
-         input[i] = random.nextFloat();
-      }
-
-      ScanImage2d sum = new ScanImage2d(context, queue);
-      CLImageFormat format = new CLImageFormat(CLImageFormat.ChannelOrder.R, CLImageFormat.ChannelType.FLOAT);
-      FloatBuffer inputBuffer = prepare(input);
-      CLImage2d<?> in = context.createImage2d(inputBuffer, width, height, format);
-      CLImage2d<?> ping = context.createImage2d(inputBuffer, width, height, format);
-      CLImage2d<?> pong = context.createImage2d(inputBuffer, width, height, format);
-
-      sum.queue.putWriteImage(in, false);
-      long start = System.currentTimeMillis();
-      CLImage2d<?> out = sum.run(in, ping, pong, width, height);
-      sum.queue.finish();
-
-      long end = System.currentTimeMillis();
-
-      System.out.println("Took: " + (end - start) + " ms");
-
-      sum.queue.putReadImage(out, false);
-      sum.queue.finish();
-
-//      FloatBuffer buf = (FloatBuffer) out.getBuffer();
-//      float[] result = new float[width*height];
-//      buf.get(result);
-//
-//      for(int y = 0; y < height; y++) {
-//         for(int x = 0; x < width; x++) {
-//            int idx = y*width + x;
-//            System.out.print(result[idx] + " ");
-//         }
-//         System.out.println();
-//      }
-   }
-
-   private static CLDevice getDevice(CLContext context) {
-      CLDevice d = null;
-      for (CLDevice device : context.getDevices()) {
-         if (device.getName().contains("AMD")) {
-            d = device;
-         }
-      }
-      return d;
-
-//      return context.getMaxFlopsDevice(CLDevice.Type.GPU);
-//      return context.getMaxFlopsDevice(CLDevice.Type.GPU);
-   }
-//
-//   public Buffer newBuffer(int width, int height) {
-//      return new Buffer(this.context, width, height, null);
-//   }
-//
-//   public Buffer newBuffer(int width, int height, FloatBuffer buffer) {
-//      return new Buffer(this.context, width, height, buffer);
-//   }
-//
-//   public float[][] read(Buffer sum) {
-//      int width = sum.buf.w;
-//      int height = sum.buf.h;
-//      float[][] result = new float[height][width];
-//      float[] data = sum.buf.getFloatTextureData(new float[width * height]);
-//      for (int y = 0; y < height; y++) {
-//         for (int x = 0; x < width; x++) {
-//            int idx = y * width + x;
-//            result[y][x] = data[idx];
-//         }
-//      }
-//      return result;
-//   }
-
 }
