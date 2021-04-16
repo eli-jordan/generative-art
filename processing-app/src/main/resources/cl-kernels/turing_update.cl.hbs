@@ -14,6 +14,24 @@ inline float map(float value,
     return start2 + (stop2 - start2) * ((value - start1) / (stop1 - start1));
 }
 
+inline void update_colour(
+    int2 coord,
+    read_only image2d_t in,
+    write_only image2d_t out,
+    constant float* scale_colour,
+    float scale_small_amount) {
+
+    float4 scale_colour_v = (float4)(scale_colour[0], scale_colour[1], scale_colour[2], 1.0);
+
+    float4 current_colour = read_imagef(in, coord);
+    float4 new_colour = mix(current_colour, scale_colour_v, scale_small_amount);
+    new_colour.w = 1.0;
+
+    //TODO: Use the grid value to set the value
+
+    write_imagef(out, coord, new_colour);
+}
+
 kernel void turing_update(
     {{#each indices}}read_only image2d_t activator{{this}},
     {{/each}}
@@ -21,9 +39,13 @@ kernel void turing_update(
     {{/each}}
     {{#each indices}}float small_amount{{this}},
     {{/each}}
+    {{#each indices}}constant float* colour{{this}},
+    {{/each}}
+    float max_inc,
     read_only image2d_t grid_in,
     write_only image2d_t grid_out,
-    float max_inc
+    read_only image2d_t image_in,
+    write_only image2d_t image_out
 ) {
     int2 coord = (int2)(get_global_id(0), get_global_id(1));
 
@@ -43,9 +65,11 @@ kernel void turing_update(
     {{#each indices}}float multiplier{{this}} = activator{{this}}_value > inhibitor{{this}}_value ? 1.0 : -1.0;
     {{/each}}
 
+    // The scale parameters for the scale with the minimum variation
     float min_variation = variation0;
     float small_amount = small_amount0;
     float multiplier = multiplier0;
+    constant float* colour = colour0;
 
     // Calculate the attributes for the "winning" scale i.e. the one with the smallest variation.
     {{#each indices}}
@@ -53,7 +77,9 @@ kernel void turing_update(
             min_variation = variation{{this}};
             small_amount = small_amount{{this}};
             multiplier = multiplier{{this}};
+            colour = colour{{this}};
         }
+        //printf("colour{{this}} = %f, %f, %f \n", colour{{this}}[0], colour{{this}}[1], colour{{this}}[2]);
     {{/each}}
 
     float new_value = read_imagef(grid_in, coord).x + small_amount * multiplier;
@@ -68,4 +94,6 @@ kernel void turing_update(
     new_value = map(new_value, -1 - max_inc, 1 + max_inc, -1, 1);
 
     write_imagef(grid_out, coord, (float4)(new_value, 0.0, 0.0, 0.0));
+
+    update_colour(coord, image_in, image_out, colour, small_amount);
 }

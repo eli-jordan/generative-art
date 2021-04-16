@@ -2,16 +2,18 @@ package turingpatterns_cl;
 
 import com.github.jknack.handlebars.Handlebars;
 import com.github.jknack.handlebars.Template;
-import org.stringtemplate.v4.ST;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.nio.charset.StandardCharsets;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
-public class KernelRender {
+public class TuringKernelRender {
 
    /**
     * Uses a handlebars template to render the turing_update kernel for a given number of scales.
@@ -23,7 +25,7 @@ public class KernelRender {
             indices.add(i);
          }
 
-         String templateSource = readStream(KernelRender.class.getResourceAsStream("/cl-kernels/turing_update.cl.hbs"));
+         String templateSource = readStream(TuringKernelRender.class.getResourceAsStream("/cl-kernels/turing_update.cl.hbs"));
 
          Handlebars hbs = new Handlebars();
          Template template = hbs.compileInline(templateSource);

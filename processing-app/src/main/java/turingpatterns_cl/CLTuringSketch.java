@@ -21,7 +21,7 @@ public class CLTuringSketch extends PApplet {
 
    @Override
    public void settings() {
-      size(1024, 1024);
+      size(512, 512);
    }
 
    @Override
@@ -36,6 +36,7 @@ public class CLTuringSketch extends PApplet {
               .activatorRadius(10)
               .inhibitorRadius(20)
               .smallAmount(0.05f)
+              .colour(color(255, 0, 0))
               .build(),
 
           ScaleConfig.newBuilder()
@@ -43,6 +44,7 @@ public class CLTuringSketch extends PApplet {
               .activatorRadius(40)
               .inhibitorRadius(100)
               .smallAmount(0.05f)
+              .colour(color(0, 255, 0))
               .build(),
 
           ScaleConfig.newBuilder()
@@ -50,15 +52,16 @@ public class CLTuringSketch extends PApplet {
               .activatorRadius(125)
               .inhibitorRadius(250)
               .smallAmount(0.05f)
+              .colour(color(0, 0, 255))
               .build()
       );
 
       List<CLScale> scales = new ArrayList<>();
-      for(ScaleConfig config : configs) {
+      for (ScaleConfig config : configs) {
          scales.add(new CLScale(config, this.context, this.queue));
       }
 
-      this.grid = new CLGrid(scales, width, height, this.context, this.queue);
+      this.grid = new CLGrid(scales, width, height, this.context, this.queue, this);
       timed("initialise", () -> this.grid.initialise(this));
 
 //      frameRate(1);
@@ -68,35 +71,62 @@ public class CLTuringSketch extends PApplet {
    public void draw() {
       long drawStart = System.currentTimeMillis();
 
-      if(frameCount % 60 == 0) {
+      boolean printMetrics = frameCount % 60 == 0;
+
+      if (printMetrics) {
          System.out.println("FrameRate: " + frameRate);
       }
 
-//      timed("Grid.update", () -> this.grid.update());
+      this.grid.update(printMetrics);
 
-      this.grid.update();
+      //TODO: CLGL interop to render the result
 
       long start = System.currentTimeMillis();
-      this.queue.putReadImage(this.grid.grid, false);
+//      this.grid.grid.getBuffer().rewind();
+//      this.queue.putReadImage(this.grid.grid, false);
+//      this.queue.finish();
+//
+//      FloatBuffer outBuffer = (FloatBuffer) this.grid.grid.getBuffer();
+//      outBuffer.rewind();
+//      float[] data = new float[width * height];
+//      outBuffer.get(data);
+//
+//      loadPixels();
+//      for (int y = 0; y < height; y++) {
+//         for (int x = 0; x < width; x++) {
+//            int idx = y * width + x;
+//            pixels[idx] = color(map(data[idx], -1.0f, 1.0f, 0, 255));
+//         }
+//      }
+//
+//      updatePixels();
+
+      this.grid.currentFrame.getBuffer().rewind();
+      this.queue.putReadImage(this.grid.currentFrame, false);
       this.queue.finish();
 
-      FloatBuffer outBuffer = (FloatBuffer) this.grid.grid.getBuffer();
+      FloatBuffer outBuffer = (FloatBuffer) this.grid.currentFrame.getBuffer();
       outBuffer.rewind();
-      float[] data = new float[width * height];
+      float[] data = new float[width * height * 3]; // RGB channels are included
       outBuffer.get(data);
+
+//      println("Read data length: " + data.length);
 
       loadPixels();
       for (int y = 0; y < height; y++) {
          for (int x = 0; x < width; x++) {
-            int idx = y * width + x;
-            pixels[idx] = color(map(data[idx], -1.0f, 1.0f, 0, 255));
+            int pixelIdx = y * width + x;
+            int dataIdx = 3*pixelIdx;
+
+//            println(idx);
+            pixels[pixelIdx] = color(data[dataIdx + 0] * 255.0f, data[dataIdx + 1] * 255.0f, data[dataIdx + 2] * 255.0f);
          }
       }
 
       updatePixels();
 
       long end = System.currentTimeMillis();
-      if(frameCount % 60 == 0) {
+      if (printMetrics) {
          System.out.println("Draw Took: " + (end - drawStart) + " ms");
          System.out.println("Blit Took: " + (end - start) + " ms");
       }
