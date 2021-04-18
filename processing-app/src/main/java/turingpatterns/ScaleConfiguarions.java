@@ -94,7 +94,7 @@ public class ScaleConfiguarions {
               .inhibitorRadius(350 * factor)
               .smallAmount(0.03f / 2)
               .colour(applet.color(245, 59, 70))
-              .symmetry(13)
+//              .symmetry(13)
               .blur(ScaleConfig.BlurType.Circular)
       );
       scales.add(
@@ -104,7 +104,7 @@ public class ScaleConfiguarions {
               .inhibitorRadius(250 * factor)
               .smallAmount(0.05f / 2)
               .colour(applet.color(246, 117, 29))
-              .symmetry(12)
+//              .symmetry(12)
               .blur(ScaleConfig.BlurType.Circular)
       );
       scales.add(
@@ -114,7 +114,7 @@ public class ScaleConfiguarions {
               .inhibitorRadius(200 * factor)
               .smallAmount(0.02f / 2)
               .colour(applet.color(243, 206, 25))
-              .symmetry(11)
+//              .symmetry(11)
               .blur(ScaleConfig.BlurType.Circular)
       );
       scales.add(
@@ -124,7 +124,7 @@ public class ScaleConfiguarions {
               .inhibitorRadius(128 * factor)
               .smallAmount(0.04f / 2)
               .colour(applet.color(22, 166, 174))
-              .symmetry(3)
+//              .symmetry(3)
               .blur(ScaleConfig.BlurType.Circular)
       );
       scales.add(
@@ -134,7 +134,7 @@ public class ScaleConfiguarions {
               .inhibitorRadius(100 * factor)
               .smallAmount(0.03f / 2)
               .colour(applet.color(255))
-              .symmetry(3)
+//              .symmetry(3)
               .blur(ScaleConfig.BlurType.Circular)
       );
       scales.add(
@@ -144,7 +144,7 @@ public class ScaleConfiguarions {
               .inhibitorRadius(100 * factor)
               .smallAmount(0.03f / 2)
               .colour(applet.color(0))
-              .symmetry(3)
+//              .symmetry(3)
               .blur(ScaleConfig.BlurType.Circular)
       );
       scales.add(
@@ -154,7 +154,7 @@ public class ScaleConfiguarions {
               .inhibitorRadius(25 * factor)
               .smallAmount(0.03f / 2)
               .colour(applet.color(80, 151, 72))
-              .symmetry(10)
+//              .symmetry(10)
               .blur(ScaleConfig.BlurType.Circular)
       );
 

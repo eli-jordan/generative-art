@@ -8,6 +8,108 @@
  * of images as arguments. So, we code-gen the variable number of arguments.
  */
 
+inline float3 rgb_to_hsv(float3 rgb) {
+    float r = rgb.x;
+    float g = rgb.y;
+    float b = rgb.z;
+
+    float h;
+    float s;
+    float v;
+
+    float minV = min(r, min(g, b));
+    float maxV = max(r, max(g, b));
+
+    v = maxV;
+    float delta = maxV - minV;
+
+    if (maxV != 0) {
+        s = delta / maxV;
+    } else {
+        h = -1;
+        s = 0;
+        v = -1;
+        return (float3)(h, s, v);
+    }
+
+    if (delta == 0) {
+        h = 0;
+    } else if (r == maxV) {
+        h = (g - b) / delta;
+    } else if (g == maxV) {
+        h = 2 + (b - r) / delta;
+    } else {
+        h = 4 + (r - g) / delta;
+    }
+
+    h *= 60;
+    if (h < 0) {
+        h += 360;
+    }
+
+    return (float3)(h, s, v);
+}
+
+inline float3 hsv_to_rgb(float3 hsv) {
+    float hu = hsv.x;
+    float s = hsv.y;
+    float v = hsv.z;
+
+    float r;
+    float g;
+    float b;
+
+    if (s == 0) {
+        r = v;
+        g = v;
+        b = v;
+        return (float3)(r, g, b);
+    }
+
+    float h = hu / 60;
+    int i = (int) floor(h);
+    float f = h - i;
+    float p = v * (1 - s);
+    float q = v * (1 - s * f);
+    float t = v * (1 - s * (1 - f));
+    switch (i) {
+        case 0:
+            r = v;
+            g = t;
+            b = p;
+            break;
+        case 1:
+            r = q;
+            g = v;
+            b = p;
+            break;
+        case 2:
+            r = p;
+            g = v;
+            b = t;
+            break;
+        case 3:
+            r = p;
+            g = q;
+            b = v;
+            break;
+        case 4:
+            r = t;
+            g = p;
+            b = v;
+            break;
+        // case 5:
+        default:
+            r = v;
+            g = p;
+            b = q;
+            break;
+    }
+
+    return (float3)(r, g, b);
+}
+
+
 inline float map(float value,
     float start1, float stop1,
     float start2, float stop2) {
@@ -16,6 +118,7 @@ inline float map(float value,
 
 inline void update_colour(
     int2 coord,
+    float grid_value,
     read_only image2d_t in,
     write_only image2d_t out,
     constant float* scale_colour,
@@ -23,11 +126,18 @@ inline void update_colour(
 
     float4 scale_colour_v = (float4)(scale_colour[0], scale_colour[1], scale_colour[2], 1.0);
 
+    float colour_step = scale_small_amount * 4.0;
+
     float4 current_colour = read_imagef(in, coord);
-    float4 new_colour = mix(current_colour, scale_colour_v, scale_small_amount);
+    float4 new_colour = mix(current_colour, scale_colour_v, colour_step);
     new_colour.w = 1.0;
 
-    //TODO: Use the grid value to set the value
+    // Here we convert the new colour from RGB to HSV, where we can then use
+    // the grid value to set the `V` (value) component of the HSV colour
+    // then we convert back to RGB to write to the output image.
+    float3 hsv = rgb_to_hsv(new_colour.xyz);
+    hsv.z = map(grid_value, -1.0, 1.0, 0.0, 1.0);
+    new_colour.xyz = hsv_to_rgb(hsv);
 
     write_imagef(out, coord, new_colour);
 }
@@ -95,5 +205,5 @@ kernel void turing_update(
 
     write_imagef(grid_out, coord, (float4)(new_value, 0.0, 0.0, 0.0));
 
-    update_colour(coord, image_in, image_out, colour, small_amount);
+    update_colour(coord, new_value, image_in, image_out, colour, small_amount);
 }

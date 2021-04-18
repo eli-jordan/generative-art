@@ -4,6 +4,7 @@ import com.jogamp.opencl.CLCommandQueue;
 import com.jogamp.opencl.CLContext;
 import com.jogamp.opencl.CLDevice;
 import processing.core.PApplet;
+import turingpatterns.ScaleConfiguarions;
 import turingpatterns.config.ScaleConfig;
 
 import java.nio.FloatBuffer;
@@ -17,11 +18,14 @@ public class CLTuringSketch extends PApplet {
    private CLDevice device;
    private CLCommandQueue queue;
 
+   private long startTs;
+
    private CLGrid grid;
 
    @Override
    public void settings() {
-      size(512, 512);
+      size(1024, 1024);
+      this.startTs = System.currentTimeMillis();
    }
 
    @Override
@@ -30,35 +34,38 @@ public class CLTuringSketch extends PApplet {
       this.device = getDevice(this.context);
       this.queue = this.device.createCommandQueue();
 
-      List<ScaleConfig> configs = Arrays.asList(
-          ScaleConfig.newBuilder()
-              .size(width, height)
-              .activatorRadius(10)
-              .inhibitorRadius(20)
-              .smallAmount(0.05f)
-              .colour(color(255, 0, 0))
-              .build(),
+      ScaleConfiguarions configs = new ScaleConfiguarions(this);
+      List<ScaleConfig.Builder> builders = configs.pastelPaletteWithSymmetry(1);
 
-          ScaleConfig.newBuilder()
-              .size(width, height)
-              .activatorRadius(40)
-              .inhibitorRadius(100)
-              .smallAmount(0.05f)
-              .colour(color(0, 255, 0))
-              .build(),
-
-          ScaleConfig.newBuilder()
-              .size(width, height)
-              .activatorRadius(125)
-              .inhibitorRadius(250)
-              .smallAmount(0.05f)
-              .colour(color(0, 0, 255))
-              .build()
-      );
+//      List<ScaleConfig> configs = Arrays.asList(
+//          ScaleConfig.newBuilder()
+//              .size(width, height)
+//              .activatorRadius(10)
+//              .inhibitorRadius(20)
+//              .smallAmount(0.05f)
+//              .colour(color(255, 0, 0))
+//              .build(),
+//
+//          ScaleConfig.newBuilder()
+//              .size(width, height)
+//              .activatorRadius(40)
+//              .inhibitorRadius(100)
+//              .smallAmount(0.05f)
+//              .colour(color(0, 255, 0))
+//              .build(),
+//
+//          ScaleConfig.newBuilder()
+//              .size(width, height)
+//              .activatorRadius(125)
+//              .inhibitorRadius(250)
+//              .smallAmount(0.05f)
+//              .colour(color(0, 0, 255))
+//              .build()
+//      );
 
       List<CLScale> scales = new ArrayList<>();
-      for (ScaleConfig config : configs) {
-         scales.add(new CLScale(config, this.context, this.queue));
+      for (ScaleConfig.Builder config : builders) {
+         scales.add(new CLScale(config.build(), this.context, this.queue));
       }
 
       this.grid = new CLGrid(scales, width, height, this.context, this.queue, this);
@@ -69,6 +76,12 @@ public class CLTuringSketch extends PApplet {
 
    @Override
    public void draw() {
+
+      if (frameCount % 10 == 0) {
+         long runTime = System.currentTimeMillis() - this.startTs;
+         println("Frame Rate: " + frameRate + ", Frame Count: " + frameCount + ", Running Time: " + runTime + " ms");
+      }
+
       long drawStart = System.currentTimeMillis();
 
       boolean printMetrics = frameCount % 60 == 0;

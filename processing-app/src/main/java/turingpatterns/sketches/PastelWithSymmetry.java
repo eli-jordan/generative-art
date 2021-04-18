@@ -13,7 +13,7 @@ public class PastelWithSymmetry extends TuringPatternApplet {
           .size(1024, 1024)
           .scaleCoupling(RunConfig.ScaleCoupling.MultiScale)
           .renderer(RunConfig.RenderType.Colour)
-          .addScales(configs.pastelPaletteWithSymmetry(0.2f))
+          .addScales(configs.pastelPaletteWithSymmetry(1.0f))
           .build();
    }
 
