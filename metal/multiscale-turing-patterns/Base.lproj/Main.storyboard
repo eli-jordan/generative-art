@@ -711,7 +711,7 @@
             <objects>
                 <viewController id="XfG-lQ-9wD" sceneMemberID="viewController">
                     <view key="view" id="m2S-Jp-Qdl" customClass="MultiscaleView" customModule="multiscale_turing_patterns">
-                        <rect key="frame" x="0.0" y="0.0" width="1024" height="1024"/>
+                        <rect key="frame" x="0.0" y="0.0" width="512" height="512"/>
                         <autoresizingMask key="autoresizingMask"/>
                     </view>
                 </viewController>

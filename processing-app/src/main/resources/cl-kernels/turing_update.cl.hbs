@@ -1,0 +1,211 @@
+
+/*
+ * This file is a template that is used to generate the OpenCL kernel that performs
+ * a multi-scale turing pattern update, when given as input the pre-calculated
+ * activator and inhibitor buffers.
+ *
+ * Code generation is used because OpenCL doesn't support passing a variable number
+ * of images as arguments. So, we code-gen the variable number of arguments.
+ */
+
+inline float3 rgb_to_hsv(float3 rgb) {
+    float r = rgb.x;
+    float g = rgb.y;
+    float b = rgb.z;
+
+    float h;
+    float s;
+    float v;
+
+    float minV = min(r, min(g, b));
+    float maxV = max(r, max(g, b));
+
+    v = maxV;
+    float delta = maxV - minV;
+
+    if (maxV != 0) {
+        s = delta / maxV;
+    } else {
+        h = -1;
+        s = 0;
+        v = -1;
+        return (float3)(h, s, v);
+    }
+
+    if (delta == 0) {
+        h = 0;
+    } else if (r == maxV) {
+        h = (g - b) / delta;
+    } else if (g == maxV) {
+        h = 2 + (b - r) / delta;
+    } else {
+        h = 4 + (r - g) / delta;
+    }
+
+    h *= 60;
+    if (h < 0) {
+        h += 360;
+    }
+
+    return (float3)(h, s, v);
+}
+
+inline float3 hsv_to_rgb(float3 hsv) {
+    float hu = hsv.x;
+    float s = hsv.y;
+    float v = hsv.z;
+
+    float r;
+    float g;
+    float b;
+
+    if (s == 0) {
+        r = v;
+        g = v;
+        b = v;
+        return (float3)(r, g, b);
+    }
+
+    float h = hu / 60;
+    int i = (int) floor(h);
+    float f = h - i;
+    float p = v * (1 - s);
+    float q = v * (1 - s * f);
+    float t = v * (1 - s * (1 - f));
+    switch (i) {
+        case 0:
+            r = v;
+            g = t;
+            b = p;
+            break;
+        case 1:
+            r = q;
+            g = v;
+            b = p;
+            break;
+        case 2:
+            r = p;
+            g = v;
+            b = t;
+            break;
+        case 3:
+            r = p;
+            g = q;
+            b = v;
+            break;
+        case 4:
+            r = t;
+            g = p;
+            b = v;
+            break;
+        // case 5:
+        default:
+            r = v;
+            g = p;
+            b = q;
+            break;
+    }
+
+    return (float3)(r, g, b);
+}
+
+
+inline float map(float value,
+    float start1, float stop1,
+    float start2, float stop2) {
+    return start2 + (stop2 - start2) * ((value - start1) / (stop1 - start1));
+}
+
+inline void update_colour(
+    int2 coord,
+    float grid_value,
+    read_only image2d_t in,
+    write_only image2d_t out,
+    constant float* scale_colour,
+    float scale_small_amount) {
+
+    float4 scale_colour_v = (float4)(scale_colour[0], scale_colour[1], scale_colour[2], 1.0);
+
+    float colour_step = scale_small_amount * 4.0;
+
+    float4 current_colour = read_imagef(in, coord);
+    float4 new_colour = mix(current_colour, scale_colour_v, colour_step);
+    new_colour.w = 1.0;
+
+    // Here we convert the new colour from RGB to HSV, where we can then use
+    // the grid value to set the `V` (value) component of the HSV colour
+    // then we convert back to RGB to write to the output image.
+    float3 hsv = rgb_to_hsv(new_colour.xyz);
+    hsv.z = map(grid_value, -1.0, 1.0, 0.0, 1.0);
+    new_colour.xyz = hsv_to_rgb(hsv);
+
+    write_imagef(out, coord, new_colour);
+}
+
+kernel void turing_update(
+    {{#each indices}}read_only image2d_t activator{{this}},
+    {{/each}}
+    {{#each indices}}read_only image2d_t inhibitor{{this}},
+    {{/each}}
+    {{#each indices}}float small_amount{{this}},
+    {{/each}}
+    {{#each indices}}constant float* colour{{this}},
+    {{/each}}
+    float max_inc,
+    read_only image2d_t grid_in,
+    write_only image2d_t grid_out,
+    read_only image2d_t image_in,
+    write_only image2d_t image_out
+) {
+    int2 coord = (int2)(get_global_id(0), get_global_id(1));
+
+    // Lookup the activator value for each input
+    {{#each indices}}float activator{{this}}_value = read_imagef(activator{{this}}, coord).x;
+    {{/each}}
+
+    // Lookup the inhibitor value for each input
+    {{#each indices}}float inhibitor{{this}}_value = read_imagef(inhibitor{{this}}, coord).x;
+    {{/each}}
+
+    // Calculate the variation value for each activator/inhibitor combination
+    {{#each indices}}float variation{{this}} = fabs(activator{{this}}_value - inhibitor{{this}}_value);
+    {{/each}}
+
+    // Calculate whether the increment will be positive or negative for a given input
+    {{#each indices}}float multiplier{{this}} = activator{{this}}_value > inhibitor{{this}}_value ? 1.0 : -1.0;
+    {{/each}}
+
+    // The scale parameters for the scale with the minimum variation
+    float min_variation = variation0;
+    float small_amount = small_amount0;
+    float multiplier = multiplier0;
+    constant float* colour = colour0;
+
+    // Calculate the attributes for the "winning" scale i.e. the one with the smallest variation.
+    {{#each indices}}
+        if(variation{{this}} < min_variation) {
+            min_variation = variation{{this}};
+            small_amount = small_amount{{this}};
+            multiplier = multiplier{{this}};
+            colour = colour{{this}};
+        }
+        //printf("colour{{this}} = %f, %f, %f \n", colour{{this}}[0], colour{{this}}[1], colour{{this}}[2]);
+    {{/each}}
+
+    float new_value = read_imagef(grid_in, coord).x + small_amount * multiplier;
+
+    // We want to normalise the values into the range [-1,1]. To do this 100% correctly
+    // we would need to perform another reduction on the grid data to find the minimum and maximum
+    // then scale the data using those.
+    //
+    // To avoid the min/max computation, we observe that at each step the maximum delta
+    // of any given value will be the maximum `small_amount` variable.
+    // So we use normalise to the range [-1 - max(small_amounts), 1 + max(small_amounts)]
+    new_value = map(new_value, -1 - max_inc, 1 + max_inc, -1, 1);
+
+    write_imagef(grid_out, coord, (float4)(new_value, 0.0, 0.0, 0.0));
+
+    //write_imagef(image_out, coord, (float4)(1.0f, 0.0f, 0.0f, 1.0f));
+
+    update_colour(coord, new_value, image_in, image_out, colour, small_amount);
+}
