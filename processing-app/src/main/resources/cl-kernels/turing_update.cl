@@ -30,8 +30,8 @@ kernel void turing_update(
 	float variation1 = fabs(activator1_value - inhibitor1_value);
 	float variation2 = fabs(activator2_value - inhibitor2_value);
 
-	float multiplier1 = activator1_value > inhibitor1_value ? 1.0 : -1.0;
-	float multiplier2 = activator2_value > inhibitor2_value ? 1.0 : -1.0;
+	float multiplier1 = activator1_value > inhibitor1_value ? 1.0f : -1.0f;
+	float multiplier2 = activator2_value > inhibitor2_value ? 1.0f : -1.0f;
 
 	float min_variation = variation1;
 	float small_amount = small_amount1;
@@ -48,6 +48,6 @@ kernel void turing_update(
 	float new_value = read_imagef(grid_in, coord).x + small_amount * multiplier;
 	new_value = map(new_value, -1 - maxInc, 1 + maxInc, -1, 1);
 
-	write_imagef(grid_out, coord, (float4)(new_value, 0.0, 0.0, 0.0));
+	write_imagef(grid_out, coord, (float4)(new_value, 0.0f, 0.0f, 0.0f));
 
 }

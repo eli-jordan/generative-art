@@ -9,6 +9,7 @@ import com.thomasdiewald.pixelflow.java.dwgl.DwGLTexture;
 import com.thomasdiewald.pixelflow.java.imageprocessing.filter.Copy;
 import com.thomasdiewald.pixelflow.java.imageprocessing.filter.DwFilter;
 import processing.core.PApplet;
+import processing.core.PGraphics;
 import processing.opengl.PGraphicsOpenGL;
 
 import java.io.IOException;
@@ -16,24 +17,32 @@ import java.io.IOException;
 public class OpenGLInterop extends PApplet {
 
    private DwPixelFlow pixelFlow;
+   private CLGLContext clContext;
+   private DwGLTexture buf;
+   private CLGLTexture2d<?> clglBuf;
+   private CLKernel kernel;
+   private CLCommandQueue queue;
+
+   PGraphics t;
 
    @Override
    public void settings() {
-      size(10, 10, P2D);
+      size(1024, 1024, P2D);
    }
 
    @Override
    public void setup() {
+      t = createGraphics(width, height, P2D);
       this.pixelFlow = new DwPixelFlow(this);
 
       // 1. Create an OpenCL context that is associated with the current OpenGL
       //    context. This allows memory to be shared between the two systems without
       //    being copied.
-      CLGLContext clContext = CLGLContext.create(pixelFlow.pjogl.context);
+      clContext = CLGLContext.create(pixelFlow.pjogl.context);
 
       // 2. Initialise an OpenGL texture that will be used as a buffer in OpenCL.
       //    We need to initialise it in OpenGL then acquire it for use in OpenCL.
-      DwGLTexture buf = new DwGLTexture();
+      buf = new DwGLTexture();
       buf.resize(
           pixelFlow,
           GL2.GL_RGBA32F,
@@ -50,35 +59,43 @@ public class OpenGLInterop extends PApplet {
 
 
       // 3. Create an OpenCL object that references the OpenGL buffer that was just initialised.
-      CLGLTexture2d<?> clglBuf = clContext.createFromGLTexture2d(buf.target, buf.HANDLE[0], 0, CLMemory.Mem.WRITE_ONLY);
+      clglBuf = clContext.createFromGLTexture2d(buf.target, buf.HANDLE[0], 0);
 
 
       // 4. Initalise the OpenCL device and kernel
-      CLDevice device = clContext.getMaxFlopsDevice(CLDevice.Type.GPU);
+      CLDevice device = Devices.getAMDGPU(clContext);
       if (!device.isGLMemorySharingSupported()) {
          throw new RuntimeException("GL mem sharing not supported");
       }
-      CLKernel kernel = getKernel(clContext);
+      kernel = getKernel(clContext);
       kernel.putArg(clglBuf);
 
 
       // 5. When submitting the kernel to the device, we need to ensure that
       //    we also submit the commands to acquire our OpenGL buffer as well
       //    otherwise the object will not be shared correctly.
-      CLCommandQueue queue = device.createCommandQueue();
+      queue = device.createCommandQueue();
+
+
+   }
+
+
+
+   @Override
+   public void draw() {
       queue.putAcquireGLObject(clglBuf);
       queue.put2DRangeKernel(kernel,
           0, 0,
           width, height,
           0, 0
-          );
+      );
       queue.putReleaseGLObject(clglBuf);
       queue.finish();
 
       // 6. Copy the texture buffer to the display
       Copy copy = DwFilter.get(pixelFlow).copy;
       copy.apply(buf, (PGraphicsOpenGL) g);
-
+      image(g, 0, 0);
    }
 
    private CLKernel getKernel(CLContext context) {

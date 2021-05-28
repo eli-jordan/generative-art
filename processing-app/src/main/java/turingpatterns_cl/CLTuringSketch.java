@@ -1,22 +1,28 @@
 package turingpatterns_cl;
 
-import com.jogamp.opencl.CLCommandQueue;
-import com.jogamp.opencl.CLContext;
-import com.jogamp.opencl.CLDevice;
+import com.jogamp.opencl.*;
+import com.jogamp.opencl.gl.CLGLContext;
+import com.jogamp.opencl.gl.CLGLTexture2d;
+import com.jogamp.opengl.GL2;
+import com.thomasdiewald.pixelflow.java.DwPixelFlow;
+import com.thomasdiewald.pixelflow.java.dwgl.DwGLTexture;
+import com.thomasdiewald.pixelflow.java.imageprocessing.filter.Copy;
+import com.thomasdiewald.pixelflow.java.imageprocessing.filter.DwFilter;
+import opencl.Devices;
 import processing.core.PApplet;
+import processing.opengl.PGraphicsOpenGL;
 import turingpatterns.ScaleConfiguarions;
 import turingpatterns.config.ScaleConfig;
 
+import java.io.IOException;
 import java.nio.FloatBuffer;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
-import java.util.function.Supplier;
 
 public class CLTuringSketch extends PApplet {
-   private CLContext context;
-   private CLDevice device;
+   private CLGLContext context;
    private CLCommandQueue queue;
+   private DwPixelFlow pixelFlow;
 
    private long startTs;
 
@@ -24,58 +30,60 @@ public class CLTuringSketch extends PApplet {
 
    @Override
    public void settings() {
-      size(1024, 1024);
+//      pixelDensity(1);
+      size(1024, 1024, P2D);
       this.startTs = System.currentTimeMillis();
    }
 
    @Override
    public void setup() {
-      this.context = CLContext.create();
-      this.device = getDevice(this.context);
-      this.queue = this.device.createCommandQueue();
+      this.pixelFlow = new DwPixelFlow(this);
+
+      this.context = CLGLContext.create(pixelFlow.pjogl.context);
+
+      CLDevice amdGPU = Devices.getAMDGPU(context);
+      assert amdGPU != null;
+      this.queue = amdGPU.createCommandQueue();
 
       ScaleConfiguarions configs = new ScaleConfiguarions(this);
-      List<ScaleConfig.Builder> builders = configs.pastelPaletteWithSymmetry(1);
-
-//      List<ScaleConfig> configs = Arrays.asList(
-//          ScaleConfig.newBuilder()
-//              .size(width, height)
-//              .activatorRadius(10)
-//              .inhibitorRadius(20)
-//              .smallAmount(0.05f)
-//              .colour(color(255, 0, 0))
-//              .build(),
-//
-//          ScaleConfig.newBuilder()
-//              .size(width, height)
-//              .activatorRadius(40)
-//              .inhibitorRadius(100)
-//              .smallAmount(0.05f)
-//              .colour(color(0, 255, 0))
-//              .build(),
-//
-//          ScaleConfig.newBuilder()
-//              .size(width, height)
-//              .activatorRadius(125)
-//              .inhibitorRadius(250)
-//              .smallAmount(0.05f)
-//              .colour(color(0, 0, 255))
-//              .build()
-//      );
+      List<ScaleConfig.Builder> builders = configs.pastelPaletteWithSymmetry(1.0f);
 
       List<CLScale> scales = new ArrayList<>();
       for (ScaleConfig.Builder config : builders) {
          scales.add(new CLScale(config.build(), this.context, this.queue));
       }
 
-      this.grid = new CLGrid(scales, width, height, this.context, this.queue, this);
-      timed("initialise", () -> this.grid.initialise(this));
+      this.grid = new CLGrid(scales, pixelWidth, pixelHeight, this.context, this.queue, this);
+      this.grid.setRenderBuffers(createRenderBuffer(), createRenderBuffer());
+      this.grid.initialise(this);
+   }
 
-//      frameRate(1);
+   private CLGrid.RenderBuffer createRenderBuffer() {
+      DwGLTexture buf = new DwGLTexture();
+      buf.resize(
+          pixelFlow,
+          GL2.GL_RGBA32F,
+          pixelWidth, pixelHeight,
+          GL2.GL_RGBA,
+          GL2.GL_FLOAT,
+          GL2.GL_NEAREST,
+          GL2.GL_CLAMP_TO_EDGE,
+          4,
+          4
+      );
+      buf.clear(0.0f);
+
+      CLGLTexture2d<?> clRef = context.createFromGLTexture2d(buf.target, buf.HANDLE[0], 0);
+      return new CLGrid.RenderBuffer(clRef, buf);
    }
 
    @Override
    public void draw() {
+//      doTestGLDraw();
+      doDraw();
+   }
+
+   private void doDraw() {
 
       if (frameCount % 10 == 0) {
          long runTime = System.currentTimeMillis() - this.startTs;
@@ -91,6 +99,7 @@ public class CLTuringSketch extends PApplet {
       }
 
       this.grid.update(printMetrics);
+      this.queue.finish();
 
       //TODO: CLGL interop to render the result
 
@@ -114,54 +123,39 @@ public class CLTuringSketch extends PApplet {
 //
 //      updatePixels();
 
-      this.grid.currentFrame.getBuffer().rewind();
-      this.queue.putReadImage(this.grid.currentFrame, false);
-      this.queue.finish();
-
-      FloatBuffer outBuffer = (FloatBuffer) this.grid.currentFrame.getBuffer();
-      outBuffer.rewind();
-      float[] data = new float[width * height * 3]; // RGB channels are included
-      outBuffer.get(data);
-
+//      this.grid.currentFrame.cl.getBuffer().rewind();
+//      this.queue.putReadImage(this.grid.currentFrame.cl, false);
+//      this.queue.finish();
+//
+//      FloatBuffer outBuffer = (FloatBuffer) this.grid.currentFrame.cl.getBuffer();
+//      outBuffer.rewind();
+//      float[] data = new float[pixelWidth * pixelHeight * 4]; // RGB channels are included
+//      outBuffer.get(data);
+//
 //      println("Read data length: " + data.length);
+//
+//      loadPixels();
+//      for (int y = 0; y < pixelHeight; y++) {
+//         for (int x = 0; x < pixelWidth; x++) {
+//            int pixelIdx = y * pixelWidth + x;
+//            int dataIdx = 3*pixelIdx;
+//
+////            println(idx);
+//            pixels[pixelIdx] = color(data[dataIdx + 0] * 255.0f, data[dataIdx + 1] * 255.0f, data[dataIdx + 2] * 255.0f);
+//         }
+//      }
+//
+//      updatePixels();
 
-      loadPixels();
-      for (int y = 0; y < height; y++) {
-         for (int x = 0; x < width; x++) {
-            int pixelIdx = y * width + x;
-            int dataIdx = 3*pixelIdx;
-
-//            println(idx);
-            pixels[pixelIdx] = color(data[dataIdx + 0] * 255.0f, data[dataIdx + 1] * 255.0f, data[dataIdx + 2] * 255.0f);
-         }
-      }
-
-      updatePixels();
+      Copy copy = DwFilter.get(pixelFlow).copy;
+      copy.apply(grid.currentFrame.gl, (PGraphicsOpenGL) g);
+      image(g, 0, 0);
 
       long end = System.currentTimeMillis();
       if (printMetrics) {
          System.out.println("Draw Took: " + (end - drawStart) + " ms");
          System.out.println("Blit Took: " + (end - start) + " ms");
       }
-   }
-
-   private void timed(String name, Supplier<Void> thunk) {
-      this.queue.finish();
-      long start = System.currentTimeMillis();
-      thunk.get();
-      this.queue.finish();
-      long end = System.currentTimeMillis();
-      println("Action(" + name + "): Took " + (end - start) + " ms");
-   }
-
-   private CLDevice getDevice(CLContext context) {
-      CLDevice d = null;
-      for (CLDevice device : context.getDevices()) {
-         if (device.getName().contains("AMD")) {
-            d = device;
-         }
-      }
-      return d;
    }
 
    public static void main(String[] args) {

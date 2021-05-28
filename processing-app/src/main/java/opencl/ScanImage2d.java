@@ -3,6 +3,7 @@ package opencl;
 import com.jogamp.opencl.*;
 
 import java.io.IOException;
+import java.nio.FloatBuffer;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -21,23 +22,23 @@ public class ScanImage2d {
       try {
          String path = "/cl-kernels/scan_image2d.cl";
          CLProgram program = this.context.createProgram(getClass().getResourceAsStream(path));
-         return program.build(device).createCLKernel("scan_image2d");
+         return program.build(CLProgram.CompilerOptions.FAST_RELAXED_MATH, device).createCLKernel("scan_image2d");
       } catch (IOException e) {
          throw new RuntimeException(e);
       }
    }
 
-   public CLImage2d<?> run(CLImage2d<?> input, CLImage2d<?> pingBuf, CLImage2d<?> pingPong, int width, int height) {
-      List<Pass<CLImage2d<?>>> passes = prefixSumPasses(input, pingBuf, pingPong, width, height);
-      this.queue.finish();
-      long start = System.currentTimeMillis();
-      CLImage2d<?> result = runPasses(passes, width, height);
+   public CLImage2d<FloatBuffer> run(CLImage2d<?> input, CLImage2d<?> pingBuf, CLImage2d<?> pingPong) {
+      List<Pass<CLImage2d<?>>> passes = prefixSumPasses(input, pingBuf, pingPong, input.width, input.height);
+//      this.queue.finish();
+//      long start = System.currentTimeMillis();
+      CLImage2d<?> result = runPasses(passes, input.width, input.height);
 
-      this.queue.finish();
-      long end = System.currentTimeMillis();
+//      this.queue.finish();
+//      long end = System.currentTimeMillis();
 //      System.out.println("ScanImage2d.run: Took " + (end-start) + " ms");
 
-      return result;
+      return (CLImage2d<FloatBuffer>) result;
    }
 
    public <B> List<Pass<B>> prefixSumPasses(B input, B pingBuf, B pingPong, int width, int height) {

@@ -2,6 +2,9 @@ package turingpatterns_cl;
 
 import com.jogamp.common.nio.Buffers;
 import com.jogamp.opencl.*;
+import com.jogamp.opencl.gl.CLGLObject;
+import com.jogamp.opencl.gl.CLGLTexture2d;
+import com.thomasdiewald.pixelflow.java.dwgl.DwGLTexture;
 import opencl.ScanImage2d;
 import processing.core.PApplet;
 
@@ -9,6 +12,16 @@ import java.nio.FloatBuffer;
 import java.util.List;
 
 public class CLGrid {
+
+   public static class RenderBuffer {
+      CLGLTexture2d<?> cl;
+      DwGLTexture gl;
+
+      public RenderBuffer(CLGLTexture2d<?> cl, DwGLTexture gl) {
+         this.cl = cl;
+         this.gl = gl;
+      }
+   }
 
    private PApplet applet;
 
@@ -22,8 +35,8 @@ public class CLGrid {
    CLImage2d<?> ping;
    CLImage2d<?> pong;
 
-   CLImage2d<?> currentFrame;
-   CLImage2d<?> nextFrame;
+   RenderBuffer currentFrame;
+   RenderBuffer nextFrame;
 
    List<CLScale> scales;
 
@@ -50,30 +63,35 @@ public class CLGrid {
 
       this.scan = new ScanImage2d(context, queue);
 
-      this.kernel = loadKernel(queue.getDevice(), scales.size());
+      this.kernel = loadKernel(scales.size());
 
       this.grid = newGridBuffer();
       this.ping = newGridBuffer();
       this.pong = newGridBuffer();
 
-      this.currentFrame = newRenderBuffer();
-      this.nextFrame = newRenderBuffer();
+//      this.currentFrame = newRenderBuffer();
+//      this.nextFrame = newRenderBuffer();
    }
 
-   private CLImage2d<?> newRenderBuffer() {
-      CLImageFormat format = new CLImageFormat(CLImageFormat.ChannelOrder.RGB, CLImageFormat.ChannelType.FLOAT);
-      return context.createImage2d(Buffers.newDirectFloatBuffer(width * height * 3), width, height, format);
+   public void setRenderBuffers(RenderBuffer current, RenderBuffer next) {
+      this.currentFrame = current;
+      this.nextFrame = next;
    }
+
+//   private CLImage2d<?> newRenderBuffer() {
+//      CLImageFormat format = ImageFormat.forRenderBuffer();
+//      return context.createImage2d(Buffers.newDirectFloatBuffer(width * height * 3), width, height, format);
+//   }
 
    private CLImage2d<?> newGridBuffer() {
-      CLImageFormat format = new CLImageFormat(CLImageFormat.ChannelOrder.R, CLImageFormat.ChannelType.FLOAT);
+      CLImageFormat format = ImageFormat.forGridBuffer();
       return context.createImage2d(Buffers.newDirectFloatBuffer(width * height), width, height, format);
    }
 
-   private CLKernel loadKernel(CLDevice device, int scaleCount) {
+   private CLKernel loadKernel(int scaleCount) {
       String source = TuringKernelRender.render(scaleCount);
       CLProgram program = this.context.createProgram(source);
-      return program.build(device).createCLKernel("turing_update");
+      return program.build(CLProgram.CompilerOptions.FAST_RELAXED_MATH).createCLKernel("turing_update");
    }
 
    /**
@@ -95,17 +113,18 @@ public class CLGrid {
 
    Void update(boolean printTimers) {
 
-      this.queue.finish();
-      long scaleUpdateStart = System.currentTimeMillis();
+//      this.queue.finish();
+//      long scaleUpdateStart = System.currentTimeMillis();
 
-      CLImage2d<?> scanData = scan.run(this.grid, ping, pong, this.width, this.height);
+      CLEventList events = new CLEventList(this.scales.size());
+      CLImage2d<?> scanData = scan.run(this.grid, ping, pong);
       for (CLScale scale : this.scales) {
-         scale.update(scanData);
+         scale.update(scanData, events);
       }
 
-      this.queue.finish();
-      long scaleUpdateEnd = System.currentTimeMillis();
-      if(printTimers) System.out.println("Scale Update:  " + (scaleUpdateEnd - scaleUpdateStart) + " ms");
+//      this.queue.finish();
+//      long scaleUpdateEnd = System.currentTimeMillis();
+//      if(printTimers) System.out.println("Scale Update:  " + (scaleUpdateEnd - scaleUpdateStart) + " ms");
 
 
       CLImage2d<?> newGrid;
@@ -122,37 +141,24 @@ public class CLGrid {
          newPong = this.pong;
       }
 
-//      System.out.println("Current: ping=" + this.ping.ID + ", pong=" + this.pong.ID + ", grid=" + this.grid.ID);
-//      System.out.println("   Next: ping=" + newPing.ID + ", pong=" + newPong.ID + ", grid=" + newGrid.ID);
-
-
-      runUpdateKernel(newGrid);
-      this.queue.finish();
-      long turingUpdateEnd = System.currentTimeMillis();
-      if(printTimers) System.out.println("Turing Update:  " + (turingUpdateEnd - scaleUpdateEnd) + " ms");
+      runUpdateKernel(newGrid, events);
+//      this.queue.finish();
+//      long turingUpdateEnd = System.currentTimeMillis();
+//      if(printTimers) System.out.println("Turing Update:  " + (turingUpdateEnd - scaleUpdateEnd) + " ms");
 
       this.grid = newGrid;
       this.ping = newPing;
       this.pong = newPong;
 
       // Swap the coloured render buffers
-      CLImage2d<?> tmp = this.currentFrame;
+      RenderBuffer tmp = this.currentFrame;
       this.currentFrame = this.nextFrame;
       this.nextFrame = tmp;
 
       return null;
    }
 
-   private void timed(String name, Action thunk) {
-      this.queue.finish();
-      long start = System.currentTimeMillis();
-      thunk.apply();
-      this.queue.finish();
-      long end = System.currentTimeMillis();
-      System.out.println("Action(" + name + "): Took " + (end - start) + " ms");
-   }
-
-   private void runUpdateKernel(CLImage2d<?> output) {
+   private void runUpdateKernel(CLImage2d<?> output, CLEventList condition) {
       this.kernel.rewind();
 
       for (CLScale scale : this.scales) {
@@ -168,6 +174,7 @@ public class CLGrid {
       }
 
       for (CLScale scale : this.scales) {
+         //TODO: pre-allocate and reuse these buffers
          float red = applet.red(scale.config.colour) / 255.0f;
          float green = applet.green(scale.config.colour) / 255.0f;
          float blue = applet.blue(scale.config.colour) / 255.0f;
@@ -183,14 +190,22 @@ public class CLGrid {
           .putArg(output);
 
       this.kernel
-          .putArg(this.currentFrame)
-          .putArg(this.nextFrame);
+          .putArg(this.currentFrame.cl)
+          .putArg(this.nextFrame.cl);
+
+      this.queue.putAcquireGLObject(this.currentFrame.cl);
+      this.queue.putAcquireGLObject(this.nextFrame.cl);
 
       this.queue.put2DRangeKernel(
           this.kernel,
           0, 0,
           width, height,
-          0, 0
+          0, 0,
+          condition,
+          null
       );
+
+      this.queue.putReleaseGLObject(this.currentFrame.cl);
+      this.queue.putReleaseGLObject(this.nextFrame.cl);
    }
 }

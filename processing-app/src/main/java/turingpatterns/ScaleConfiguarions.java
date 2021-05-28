@@ -82,8 +82,8 @@ public class ScaleConfiguarions {
    }
 
    public List<ScaleConfig.Builder> pastelPaletteWithSymmetry(float factor) {
-      int w = applet.width;
-      int h = applet.height;
+      int w = applet.pixelWidth;
+      int h = applet.pixelHeight;
 
       List<ScaleConfig.Builder> scales = new ArrayList<>();
 

@@ -10,7 +10,7 @@ public class PastelWithSymmetry extends TuringPatternApplet {
    public PastelWithSymmetry() {
       ScaleConfiguarions configs = new ScaleConfiguarions(this);
       runConfig = RunConfig.newBuilder()
-          .size(1024, 1024)
+          .size(512, 512)
           .scaleCoupling(RunConfig.ScaleCoupling.MultiScale)
           .renderer(RunConfig.RenderType.Colour)
           .addScales(configs.pastelPaletteWithSymmetry(1.0f))

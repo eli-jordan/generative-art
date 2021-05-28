@@ -9,7 +9,7 @@ lazy val root = (project in file("."))
       "org.jogamp.jocl" % "jocl-main" % "2.3.2",
       "com.github.wendykierp" % "JTransforms" % "3.1",
       "com.github.jknack" % "handlebars" % "4.2.0",
-      "org.spf4j" % "spf4j-core" % "8.8.5"
+      "org.junit.jupiter" % "junit-jupiter" % "5.7.1" % Test
     ),
 //    unmanagedJars in Compile := {
 //      val libs = baseDirectory.value / "lib"

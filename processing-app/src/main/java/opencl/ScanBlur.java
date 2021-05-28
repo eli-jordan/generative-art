@@ -29,7 +29,7 @@ public class ScanBlur {
       try {
          String path = "/cl-kernels/scan_blur.cl";
          CLProgram program = this.context.createProgram(getClass().getResourceAsStream(path));
-         return program.build(device).createCLKernels();
+         return program.build(CLProgram.CompilerOptions.FAST_RELAXED_MATH, device).createCLKernels();
       } catch (IOException e) {
          throw new RuntimeException(e);
       }
@@ -39,7 +39,7 @@ public class ScanBlur {
 
       this.queue.finish();
       long startScan = System.currentTimeMillis();
-      CLImage2d<?> scanData = this.sum.run(in, ping, pong, in.width, in.height);
+      CLImage2d<?> scanData = this.sum.run(in, ping, pong);
       CLImage2d<?> blurOut = scanData.ID == ping.ID ? pong : ping;
 
       this.queue.finish();
@@ -51,13 +51,13 @@ public class ScanBlur {
 //      print((FloatBuffer) pong.getBuffer(), in.width, in.height);
 //      System.out.println("---");
 
-      runBlurKernel(scanData, blurOut, radius);
+      runBlurKernel(scanData, blurOut, radius, null);
       return blurOut;
    }
 
-   public void runBlurKernel(CLImage2d<?> scanData, CLImage2d<?> out, int radius) {
-      this.queue.finish();
-      long blurStart = System.currentTimeMillis();
+   public void runBlurKernel(CLImage2d<?> scanData, CLImage2d<?> out, int radius, CLEventList events) {
+//      this.queue.finish();
+//      long blurStart = System.currentTimeMillis();
       CLKernel kernel = this.kernels.get(scan_blur_image);
       kernel.rewind();
       kernel
@@ -74,135 +74,14 @@ public class ScanBlur {
           kernel,
           0, 0,
           out.width, out.height,
-          localSizeX, localSizeY
+          localSizeX, localSizeY,
+          events
       );
 
-      this.queue.finish();
-      long blurEnd = System.currentTimeMillis();
+//      this.queue.finish();
+//      long blurEnd = System.currentTimeMillis();
 //      System.out.println("ScanBlur.runBlurKernel(radius=" + radius + "): " + (blurEnd - blurStart) + " ms");
    }
-
-//
-//   public void blur(CLBuffer<FloatBuffer> in, CLBuffer<FloatBuffer> out, int width, int height, int radius) {
-//
-//      CLBuffer<FloatBuffer> scanData = this.context.createFloatBuffer(width * height);
-//      try {
-//         // Create sub-buffer for each row, and perform the scan operation on each row
-//         // using the sub-buffers
-//         scanRows(in, scanData, width, height);
-//
-//         this.queue.putBarrier();
-//
-//         boolean useImage = true;
-//         if (useImage) {
-//            blurWithImage(scanData, out, width, height, radius);
-//         } else {
-//            blurWithBuffer(scanData, out, width, height, radius);
-//         }
-//
-//
-//      } finally {
-//         scanData.release();
-//      }
-//   }
-//
-//   private void blurWithBuffer(CLBuffer<FloatBuffer> scanData, CLBuffer<FloatBuffer> out, int width, int height, int radius) {
-//      long start = System.currentTimeMillis();
-//      CLKernel kernel = this.kernels.get(scan_blur);
-//      kernel.rewind();
-//      kernel
-//          .putArg(scanData)
-//          .putArg(out)
-//          .putArg(radius)
-//          .putArg(width)
-//          .putArg(height);
-//
-//      // TODO: 16x16 seems to work well here, but not when the global size < 16x16
-//      int localSizeX = 16;
-//      int localSizeY = 16;
-//      this.queue.put2DRangeKernel(
-//          kernel,
-//          0, 0,
-//          width, height,
-//          localSizeX, localSizeY
-//      );
-//
-//      this.queue.finish();
-//      long end = System.currentTimeMillis();
-//      System.out.println("kernel(scan_blur:buffer): " + (end - start) + " millis");
-//   }
-//
-//   private void blurWithImage(CLBuffer<FloatBuffer> scanData, CLBuffer<FloatBuffer> out, int width, int height, int radius) {
-//      //TODO: Even with the copies necessary to move the prefix sum buffer
-//      // into an image, this is still faster than performing the blur
-//      // on the buffer.
-//      // Notes:
-//      //  - Its tricky to change the scan kernel to use images, since it relies on in-place
-//      //    updates.
-//      //  - There is no way (AFAIK) to view an image as a buffer or a buffer as an image, without copies.
-//      //    This makes sense, because images have an opaque storage format that allows spatially
-//      //    near looks to be cached.
-//      // Is there something else we can do here to avoid the copies?
-//      this.queue.finish();
-//      long startCopy = System.currentTimeMillis();
-//      CLImageFormat imageFormat = new CLImageFormat(CLImageFormat.ChannelOrder.R, CLImageFormat.ChannelType.FLOAT);
-//      CLImage2d<?> imageIn = context.createImage2d(width, height, imageFormat);
-//      CLImage2d<?> imageOut = context.createImage2d(width, height, imageFormat);
-//      this.queue.putCopyBufferToImage(scanData, imageIn);
-//
-//      this.queue.finish();
-//      long start = System.currentTimeMillis();
-//      CLKernel kernel = this.kernels.get(scan_blur_image);
-//      kernel.rewind();
-//      kernel
-//          .putArg(imageIn)
-//          .putArg(imageOut)
-//          .putArg(radius)
-//          .putArg(width)
-//          .putArg(height);
-//
-//      // TODO: 16x16 seems to work well here, but not when the global size < 16x16
-//      int localSizeX = 16;
-//      int localSizeY = 16;
-//      this.queue.put2DRangeKernel(
-//          kernel,
-//          0, 0,
-//          width, height,
-//          localSizeX, localSizeY
-//      );
-//
-//      this.queue.finish();
-//      long end = System.currentTimeMillis();
-//      System.out.println("kernel(scan_blur:image:no-copies): " + (end - start) + " millis");
-//
-//      this.queue.putCopyImageToBuffer(imageOut, out);
-//      this.queue.finish();
-//      long endCopy = System.currentTimeMillis();
-//      System.out.println("kernel(scan_blur:image:with-copies): " + (endCopy - startCopy) + " millis");
-//   }
-//
-//   private void scanRows(CLBuffer<FloatBuffer> in, CLBuffer<FloatBuffer> out, int width, int height) {
-//      // We first copy the data, then perform the scan in-place
-//      this.queue.putCopyBuffer(in, out);
-//
-//      this.queue.finish();
-//      long start = System.currentTimeMillis();
-//      // Create sub-buffer for each row, and perform the scan operation on each row
-//      // using the sub-buffers
-//      for (int y = 0; y < height; y++) {
-//         int offset = y * width;
-//         int size = width;
-//         CLSubBuffer<?> row = out.createSubBuffer(offset, size);
-//         this.scan.scan(row);
-//
-//         // For some reason, if I don't put a read here the writes into
-//         // the sub-buffer are not visible to the parent buffer.
-////         this.queue.putReadBuffer(out, false);
-//      }
-//      this.queue.finish();
-//      long end = System.currentTimeMillis();
-//      System.out.println("scanRows: " + (end - start) + " millis");
-//   }
 
 
    static void print(String pre, FloatBuffer buf) {

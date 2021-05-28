@@ -205,5 +205,7 @@ kernel void turing_update(
 
     write_imagef(grid_out, coord, (float4)(new_value, 0.0, 0.0, 0.0));
 
+    //write_imagef(image_out, coord, (float4)(1.0f, 0.0f, 0.0f, 1.0f));
+
     update_colour(coord, new_value, image_in, image_out, colour, small_amount);
 }

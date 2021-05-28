@@ -1,7 +1,7 @@
 
 #define DEBUG false
 
-constant float PI = 3.14159265358979323846;
+constant float PI = 3.14159265358979323846f;
 
 /*
  * Takes as input a prefix-sum on the rows of an image.
@@ -21,7 +21,7 @@ kernel void scan_blur_image(
     printf("kernel(scan_blur_image): radius=%d, width=%d, height=%d\n", radius, width, height);
     #endif 
 
-    float sum = 0.0;
+    float sum = 0.0f;
 
     for (int iy = -radius; iy <= radius; iy++) {
         float xBound = sqrt((float)(radius*radius - iy*iy));
@@ -46,7 +46,7 @@ kernel void scan_blur_image(
         x, y, input, sum, result);
     #endif
 
-    write_imagef(output, (int2)(x, y), (float4)(result, 0.0, 0.0, 1.0));
+    write_imagef(output, (int2)(x, y), (float4)(result, 0.0f, 0.0f, 0.0f));
 }
 
 inline int buf_index(int x, int y, int width) {
@@ -68,7 +68,7 @@ kernel void scan_blur(
 	printf("kernel(scan_blur): radius=%d, width=%d, height=%d\n", radius, width, height);
 	#endif 
 
-	float sum = 0.0;
+	float sum = 0.0f;
 
 	for (int iy = -radius; iy <= radius; iy++) {
         float xBound = sqrt((float)(radius*radius - iy*iy));

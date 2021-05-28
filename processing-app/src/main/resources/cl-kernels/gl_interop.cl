@@ -7,9 +7,9 @@ kernel void red(write_only image2d_t pixels) {
     // printf("x=%d y=%d\n", x, y);
 
     if(y < 5) {
-        write_imagef(pixels, (int2)(x, y), (float4)(0.0, 0.0, 1.0, 1.0));
+        write_imagef(pixels, (int2)(x, y), (float4)(0.0f, 0.0f, 1.0f, 1.0f));
     } else {
-        write_imagef(pixels, (int2)(x, y), (float4)(1.0, 0.0, 0.0, 1.0));
+        write_imagef(pixels, (int2)(x, y), (float4)(1.0f, 0.0f, 0.0f, 1.0f));
     }
 
 }

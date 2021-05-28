@@ -203,10 +203,10 @@ class MultiscaleView: MTKView {
       renderState()
       
 //      if frameCount > 10 {
-         let filePath = "/Users/elias.jordan/Desktop/render/frame-" + String(format: "%04d", frameCount) + ".png"
-         let url = URL(fileURLWithPath: filePath)
-         let tex = currentDrawable!.texture
-         writeTexture(tex, url: url)
+//         let filePath = "/Users/elias.jordan/Desktop/render/frame-" + String(format: "%04d", frameCount) + ".png"
+//         let url = URL(fileURLWithPath: filePath)
+//         let tex = currentDrawable!.texture
+//         writeTexture(tex, url: url)
 //      }
  
       frameCount += 1
